@@ -1,12 +1,20 @@
+
 import 'package:flutter/material.dart';
 
-class PantallaUsuarios extends StatelessWidget {
-  final List<Map<String, dynamic>> usuarios = [
-    {'nombre': 'Ana López', 'rol': 'Administrador', 'estado': 'Activo'},
-    {'nombre': 'Carlos Ruiz', 'rol': 'Operador', 'estado': 'Activo'},
-    {'nombre': 'María Pérez', 'rol': 'Supervisor', 'estado': 'Bloqueado'},
-    {'nombre': 'Juan Torres', 'rol': 'Operador', 'estado': 'Activo'},
-  ];
+
+class PantallaUsuarios extends StatefulWidget {
+  @override
+  State<PantallaUsuarios> createState() => _PantallaUsuariosState();
+}
+
+class _PantallaUsuariosState extends State<PantallaUsuarios> {
+  late Future<List<Map<String, dynamic>>> _usuariosFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _usuariosFuture = _obtenerUsuarios();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,43 +49,41 @@ class PantallaUsuarios extends StatelessWidget {
               Text('Usuarios del sistema', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 26, letterSpacing: 0.2)),
               const SizedBox(height: 28),
               Expanded(
-                child: ListView.separated(
-                  itemCount: usuarios.length,
-                  separatorBuilder: (_, __) => SizedBox(height: 22),
-                  itemBuilder: (context, i) {
-                    final u = usuarios[i];
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 12, offset: Offset(0, 3))],
-                        border: Border.all(color: Colors.white12),
-                      ),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          radius: 32,
-                          backgroundColor: u['estado'] == 'Activo' ? Colors.greenAccent : Colors.redAccent,
-                          child: Icon(Icons.person, color: Colors.black, size: 34),
-                        ),
-                        title: Text(u['nombre'], style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 20)),
-                        subtitle: Text(u['rol'], style: TextStyle(color: Colors.white70, fontSize: 16)),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: Icon(Icons.edit, color: Colors.amberAccent, size: 28),
-                              tooltip: 'Editar',
-                              onPressed: () {},
+                child: FutureBuilder<List<Map<String, dynamic>>>(
+                  future: _usuariosFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return Center(child: CircularProgressIndicator());
+                    } else if (snapshot.hasError) {
+                      return Center(child: Text('Error al cargar usuarios', style: TextStyle(color: Colors.redAccent)));
+                    } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                      return Center(child: Text('No hay usuarios registrados', style: TextStyle(color: Colors.white70)));
+                    }
+                    final usuarios = snapshot.data!;
+                    return ListView.separated(
+                      itemCount: usuarios.length,
+                      separatorBuilder: (_, __) => SizedBox(height: 22),
+                      itemBuilder: (context, i) {
+                        final u = usuarios[i];
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 12, offset: Offset(0, 3))],
+                            border: Border.all(color: Colors.white12),
+                          ),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              radius: 32,
+                              backgroundColor: u['estado'] == 'Activo' ? Colors.greenAccent : Colors.redAccent,
+                              child: Icon(Icons.person, color: Colors.black, size: 34),
                             ),
-                            IconButton(
-                              icon: Icon(Icons.block, color: Colors.redAccent, size: 28),
-                              tooltip: u['estado'] == 'Activo' ? 'Bloquear' : 'Desbloquear',
-                              onPressed: () {},
-                            ),
-                          ],
-                        ),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-                      ),
+                            title: Text(u['nombre'] ?? '', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 22)),
+                            subtitle: Text(u['rol'] ?? '', style: TextStyle(color: Colors.white70, fontSize: 16)),
+                            trailing: Text(u['estado'] ?? '', style: TextStyle(color: u['estado'] == 'Activo' ? Colors.greenAccent : Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 18)),
+                          ),
+                        );
+                      },
                     );
                   },
                 ),
@@ -87,5 +93,11 @@ class PantallaUsuarios extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Método temporal para obtener usuarios (implementación futura)
+  Future<List<Map<String, dynamic>>> _obtenerUsuarios() async {
+    // TODO: Implementar usando los servicios reales cuando estén listos
+    return [];
   }
 }

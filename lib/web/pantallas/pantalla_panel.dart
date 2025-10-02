@@ -9,6 +9,8 @@ import 'pantalla_usuarios.dart';
 import 'pantalla_sensores.dart';
 import 'pantalla_reportes.dart';
 
+import '../../servicios/theme_widgets.dart';
+
 /// Pantalla principal del centro de control web donde se visualizan sensores y reportes.
 class PantallaPanel extends StatefulWidget {
   @override
@@ -16,205 +18,188 @@ class PantallaPanel extends StatefulWidget {
 }
 
 class _PantallaPanelState extends State<PantallaPanel> {
-  final List<Map<String, dynamic>> feedActividad = [
-    {'hora': '12:01', 'tipo': 'Alerta', 'msg': 'Sensor #S-087 lleva 1h sin reportar.'},
-    {'hora': '11:58', 'tipo': 'Reporte', 'msg': 'Usuario anónimo informa "Foco Roto" en Calle X.'},
-    {'hora': '11:55', 'tipo': 'Info', 'msg': 'Sensor #S-112 vuelve a estar en línea.'},
-    {'hora': '11:50', 'tipo': 'Alerta', 'msg': 'Sensor #S-004 batería baja.'},
-    {'hora': '11:45', 'tipo': 'Reporte', 'msg': 'Actividad sospechosa en Calle Y.'},
-  ];
-  // Datos simulados de zonas, reportes y sensores
-  final List<Map<String, dynamic>> zonasSeguras = [
-    {
-      'centro': LatLng(31.3200, -113.5310),
-      'radio': 220.0,
-      'descripcion': 'Zona turística, bien iluminada y patrullada.'
-    },
-    {
-      'centro': LatLng(31.3150, -113.5400),
-      'radio': 180.0,
-      'descripcion': 'Zona residencial segura, vigilancia vecinal.'
-    },
-  ];
-  final List<Map<String, dynamic>> zonasPeligrosas = [
-    {
-      'centro': LatLng(31.3185, -113.5450),
-      'radio': 180.0,
-      'motivo': 'Asaltos recientes en la zona. Evita transitar de noche.',
-      'ultimoReporte': 'Asalto reportado hace 1h.'
-    },
-    {
-      'centro': LatLng(31.3120, -113.5340),
-      'radio': 150.0,
-      'motivo': 'Zona con poca iluminación y actividad sospechosa.',
-      'ultimoReporte': 'Actividad sospechosa reportada hace 3h.'
-    },
-  ];
+  late Future<List<Map<String, dynamic>>> _nodosFuture;
+  late Future<List<Map<String, dynamic>>> _lecturasFuture;
+  late Future<List<Map<String, dynamic>>> _feedFuture;
 
-  final List<Map<String, dynamic>> sensores = [
-    {
-      'tipo': 'Luminaria',
-      'estado': 'Activo',
-      'ubicacion': LatLng(31.3175, -113.5335),
-      'id': 'LUM-001',
-      'ultimaAccion': 'Encendida hace 5 min'
-    },
-    {
-      'tipo': 'Cámara',
-      'estado': 'Fallo',
-      'ubicacion': LatLng(31.3190, -113.5370),
-      'id': 'CAM-002',
-      'ultimaAccion': 'Sin señal desde hace 2h'
-    },
-    {
-      'tipo': 'Botón de Pánico',
-      'estado': 'Activo',
-      'ubicacion': LatLng(31.3140, -113.5390),
-      'id': 'PAN-003',
-      'ultimaAccion': 'Activado hace 1h'
-    },
-    {
-      'tipo': 'Luminaria',
-      'estado': 'Fallo',
-      'ubicacion': LatLng(31.3160, -113.5415),
-      'id': 'LUM-004',
-      'ultimaAccion': 'Apagada hace 20 min'
-    },
-  ];
+  // int _selectedMenu = 0; // Duplicado, eliminar
 
-  final List<Map<String, dynamic>> reportes = [
-    {
-      'tipo': 'Actividad Sospechosa',
-      'hora': 'Hace 10 min',
-      'ubicacion': 'Calle Simón Morua',
-      'zona': 'Peligrosa'
-    },
-    {
-      'tipo': 'Foco Descompuesto',
-      'hora': 'Hace 25 min',
-      'ubicacion': 'Calle Vicente Guerrero',
-      'zona': 'Segura'
-    },
-    {
-      'tipo': 'Asalto',
-      'hora': 'Hace 1h',
-      'ubicacion': 'Calle Benito Juárez',
-      'zona': 'Peligrosa'
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _nodosFuture = Future.value(<Map<String, dynamic>>[]);
+    _lecturasFuture = Future.value(<Map<String, dynamic>>[]);
+    // feedActividad: puedes crear un método en SupabaseService para obtener actividad si tienes una tabla, o usar lecturas recientes
+    _feedFuture = Future.value(<Map<String, dynamic>>[]);
+  }
 
   int _selectedMenu = 0; // 0: Dashboard, 1: Configuración, 2: Usuarios, 3: Sensores, 4: Reportes
 
   @override
   Widget build(BuildContext context) {
-    // Indicadores clave
-    final int sensoresActivos = sensores.where((s) => s['estado'] == 'Activo').length;
-    final int sensoresFallo = sensores.where((s) => s['estado'] == 'Fallo').length;
-    final int zonasPeligrosasCount = zonasPeligrosas.length;
-    final int reportesCount = reportes.length;
-
     return Scaffold(
-      backgroundColor: const Color(0xFF181C2E),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Row(
         children: [
-          // Menú lateral fijo
+          // Menú lateral fijo con diseño accesible
           Container(
-            width: 80,
-            color: const Color(0xFF20212B),
+            width: 100,
+            color: Theme.of(context).primaryColor,
             child: Column(
               children: [
-                const SizedBox(height: 18),
+                const SizedBox(height: 24),
                 GestureDetector(
                   onTap: () => setState(() => _selectedMenu = 0),
-                  child: Icon(Icons.dashboard, color: _selectedMenu == 0 ? Colors.amberAccent : Colors.white38, size: 34),
+                  child: _MenuIconLarge(
+                    icon: Icons.dashboard_rounded,
+                    label: 'Panel',
+                    selected: _selectedMenu == 0,
+                  ),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 20),
                 GestureDetector(
                   onTap: () => setState(() => _selectedMenu = 3),
-                  child: _MenuIcon(icon: Icons.sensors, label: 'Sensores', selected: _selectedMenu == 3),
+                  child: _MenuIconLarge(icon: Icons.sensors_rounded, label: 'Sensores', selected: _selectedMenu == 3),
                 ),
+                const SizedBox(height: 16),
                 GestureDetector(
                   onTap: () => setState(() => _selectedMenu = 4),
-                  child: _MenuIcon(icon: Icons.report, label: 'Reportes', selected: _selectedMenu == 4),
+                  child: _MenuIconLarge(icon: Icons.bar_chart_rounded, label: 'Lecturas', selected: _selectedMenu == 4),
                 ),
-                _MenuIcon(icon: Icons.analytics, label: 'Analítica', selected: false),
+                const SizedBox(height: 16),
+                _MenuIconLarge(icon: Icons.analytics_rounded, label: 'Analítica', selected: false),
+                const SizedBox(height: 16),
                 GestureDetector(
                   onTap: () => setState(() => _selectedMenu = 1),
-                  child: _MenuIcon(icon: Icons.settings, label: 'Config.', selected: _selectedMenu == 1),
+                  child: _MenuIconLarge(icon: Icons.settings_rounded, label: 'Config.', selected: _selectedMenu == 1),
                 ),
+                const SizedBox(height: 16),
                 GestureDetector(
                   onTap: () => setState(() => _selectedMenu = 2),
-                  child: _MenuIcon(icon: Icons.people, label: 'Usuarios', selected: _selectedMenu == 2),
+                  child: _MenuIconLarge(icon: Icons.people_rounded, label: 'Usuarios', selected: _selectedMenu == 2),
                 ),
                 const Spacer(),
-                Icon(Icons.logout, color: Colors.white24, size: 28),
-                const SizedBox(height: 18),
+                Icon(Icons.logout_rounded, color: Colors.white70, size: 32),
+                const SizedBox(height: 24),
               ],
             ),
           ),
           // Pantalla central según menú
           Expanded(
             flex: 2,
-            child: () {
-              if (_selectedMenu == 0) {
-                return _DashboardCentral(
-                  sensores: sensores,
-                  reportes: reportes,
-                  feedActividad: feedActividad,
-                  sensoresActivos: sensores.where((s) => s['estado'] == 'Activo').length,
-                  sensoresFallo: sensores.where((s) => s['estado'] == 'Fallo').length,
-                  reportesCount: reportes.length,
-                );
-              } else if (_selectedMenu == 1) {
-                return PantallaConfiguracion();
-              } else if (_selectedMenu == 2) {
-                return PantallaUsuarios();
-              } else if (_selectedMenu == 3) {
-                return PantallaSensores();
-              } else if (_selectedMenu == 4) {
-                return PantallaReportes();
-              } else {
-                return SizedBox();
-              }
-            }(),
+            child: _selectedMenu == 0
+                ? FutureBuilder<List<List<Map<String, dynamic>>>>(
+                    future: Future.wait([
+                      _nodosFuture,
+                      _lecturasFuture,
+                      _feedFuture,
+                    ]),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return Center(child: CircularProgressIndicator());
+                      } else if (snapshot.hasError) {
+                        print('Supabase error:');
+                        print(snapshot.error);
+                        return Center(child: Text('Error al cargar datos', style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 18)));
+                      } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                        return Center(child: Text('No hay datos disponibles', style: TextStyle(color: Theme.of(context).colorScheme.onBackground, fontSize: 18)));
+                      }
+                      final List<Map<String, dynamic>> nodos = snapshot.data![0];
+                      final List<Map<String, dynamic>> lecturas = snapshot.data![1];
+                      final List<Map<String, dynamic>> feedActividad = snapshot.data![2];
+                      return _DashboardCentral(
+                        sensores: nodos,
+                        reportes: lecturas,
+                        feedActividad: feedActividad,
+                        sensoresActivos: nodos.where((s) => s['activo'] == true).length,
+                        sensoresFallo: nodos.where((s) => s['activo'] == false).length,
+                        reportesCount: lecturas.length,
+                      );
+                    },
+                  )
+                : _selectedMenu == 1
+                    ? PantallaConfiguracion()
+                    : _selectedMenu == 2
+                        ? PantallaUsuarios()
+                        : _selectedMenu == 3
+                            ? PantallaSensores()
+                            : _selectedMenu == 4
+                                ? PantallaReportes()
+                                : SizedBox(),
           ),
           // Feed de actividad solo en dashboard
           if (_selectedMenu == 0)
-            Container(
-              width: 340,
-              color: const Color(0xFF23243A),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Text('Feed de Actividad', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+            FutureBuilder<List<List<Map<String, dynamic>>>>(
+              future: Future.wait([
+                _feedFuture,
+              ]),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Container(
+                    width: 340,
+                    color: const Color(0xFF23243A),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                } else if (snapshot.hasError) {
+                  return Container(
+                    width: 340,
+                    color: const Color(0xFF23243A),
+                    child: Center(child: Text('Error al cargar actividad', style: TextStyle(color: Colors.redAccent))),
+                  );
+                } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return Container(
+                    width: 340,
+                    color: const Color(0xFF23243A),
+                    child: Center(child: Text('No hay actividad reciente', style: TextStyle(color: Colors.white70))),
+                  );
+                }
+                final List<Map<String, dynamic>> feedActividad = snapshot.data![0];
+                return Container(
+                  width: 340,
+                  color: const Color(0xFF23243A),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Text('Feed de Actividad', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                      ),
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: feedActividad.length,
+                          itemBuilder: (context, i) {
+                            final item = feedActividad[i];
+                            Color color;
+                            if (item['tipo'] == 'Alerta') color = Colors.redAccent;
+                            else if (item['tipo'] == 'Reporte') color = Colors.amberAccent;
+                            else color = Colors.greenAccent;
+                            return ListTile(
+                              leading: Icon(
+                                item['tipo'] == 'Alerta' ? Icons.warning_amber_rounded : item['tipo'] == 'Reporte' ? Icons.report : Icons.info,
+                                color: color,
+                              ),
+                              title: Text(item['msg'] ?? item['tipo'] ?? '', style: TextStyle(color: Colors.white)),
+                              subtitle: Text(item['hora'] ?? '', style: TextStyle(color: Colors.white54, fontSize: 13)),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   ),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: feedActividad.length,
-                      itemBuilder: (context, i) {
-                        final item = feedActividad[i];
-                        Color color;
-                        if (item['tipo'] == 'Alerta') color = Colors.redAccent;
-                        else if (item['tipo'] == 'Reporte') color = Colors.amberAccent;
-                        else color = Colors.greenAccent;
-                        return ListTile(
-                          leading: Icon(
-                            item['tipo'] == 'Alerta' ? Icons.warning_amber_rounded : item['tipo'] == 'Reporte' ? Icons.report : Icons.info,
-                            color: color,
-                          ),
-                          title: Text(item['msg'], style: TextStyle(color: Colors.white)),
-                          subtitle: Text(item['hora'], style: TextStyle(color: Colors.white54, fontSize: 13)),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
         ],
       ),
+      // Botón flotante para cambio rápido de tema
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 16.0, right: 16.0),
+        child: ThemeToggleSwitch(
+          showLabel: false,
+          size: 0.9,
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endTop,
     );
   }
 }
@@ -274,7 +259,9 @@ class _DashboardCentral extends StatelessWidget {
                     ),
                     children: [
                       TileLayer(
-                        urlTemplate: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+                        urlTemplate: Theme.of(context).brightness == Brightness.dark
+                            ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                            : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
                         subdomains: ['a', 'b', 'c', 'd'],
                         userAgentPackageName: 'com.example.rutasseguras',
                         backgroundColor: Colors.transparent,
@@ -282,7 +269,9 @@ class _DashboardCentral extends StatelessWidget {
                       // Heatmap simulado de reportes
                       MarkerLayer(
                         markers: reportes.map((rep) {
-                          final color = rep['zona'] == 'Peligrosa' ? Colors.redAccent.withOpacity(0.18) : Colors.amberAccent.withOpacity(0.13);
+                          final color = rep['zona'] == 'Peligrosa' 
+                              ? Theme.of(context).colorScheme.error.withOpacity(0.18) 
+                              : Theme.of(context).colorScheme.secondary.withOpacity(0.13);
                           final random = Random(rep['ubicacion'].hashCode);
                           final lat = 31.3167 + (random.nextDouble() - 0.5) * 0.01;
                           final lng = -113.5361 + (random.nextDouble() - 0.5) * 0.01;
@@ -335,20 +324,37 @@ class _DashboardCentral extends StatelessWidget {
   }
 }
 
-/// Menú lateral fijo: íconos y labels
-class _MenuIcon extends StatelessWidget {
+/// Menú lateral accesible: íconos grandes y labels legibles
+class _MenuIconLarge extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool selected;
-  const _MenuIcon({required this.icon, required this.label, this.selected = false});
+  const _MenuIconLarge({required this.icon, required this.label, this.selected = false});
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      decoration: BoxDecoration(
+        color: selected ? Colors.white.withOpacity(0.2) : Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Column(
         children: [
-          Icon(icon, color: selected ? Colors.amberAccent : Colors.white38, size: 28),
-          Text(label, style: TextStyle(color: selected ? Colors.amberAccent : Colors.white38, fontSize: 11)),
+          Icon(
+            icon, 
+            color: selected ? Colors.white : Colors.white70, 
+            size: 36
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label, 
+            style: TextStyle(
+              color: selected ? Colors.white : Colors.white70, 
+              fontSize: 12,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+            ),
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );
@@ -440,4 +446,6 @@ class _IndicadorDashboard extends StatelessWidget {
       ),
     );
   }
+
+
 }

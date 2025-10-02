@@ -7,21 +7,21 @@ class PantallaReporte extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF181C2E),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF23243A),
+        backgroundColor: Theme.of(context).colorScheme.surface,
         elevation: 0,
-        title: const Text('Reportar incidente', style: TextStyle(color: Colors.white)),
-        iconTheme: const IconThemeData(color: Colors.white),
+        title: Text('Reportar incidente', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
+        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onSurface),
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Selecciona el tipo de incidente:',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
+              style: TextStyle(color: Theme.of(context).colorScheme.onBackground, fontWeight: FontWeight.bold, fontSize: 20),
             ),
             const SizedBox(height: 24),
             const _OpcionReporte(icon: Icons.lightbulb, label: 'Foco Descompuesto'),
@@ -32,7 +32,7 @@ class PantallaReporte extends StatelessWidget {
             const Spacer(),
             Center(
               child: Text('Tu reporte es anónimo y ayuda a mejorar la seguridad.',
-                style: TextStyle(color: Colors.white38, fontSize: 14),
+                style: TextStyle(color: Theme.of(context).colorScheme.onBackground.withOpacity(0.6), fontSize: 14),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -67,20 +67,31 @@ class _OpcionReporte extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.10),
+            color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Theme.of(context).colorScheme.shadow.withOpacity(0.15),
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
+            ],
+            border: Border.all(
+              color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+              width: 1,
+            ),
           ),
           child: Row(
             children: [
-              Icon(icon, color: Colors.white, size: 28),
+              Icon(icon, color: Theme.of(context).colorScheme.onSurface, size: 28),
               const SizedBox(width: 18),
               Expanded(
                 child: Text(
                   label,
-                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w500),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 18, fontWeight: FontWeight.w500),
                 ),
               ),
-              const Icon(Icons.arrow_forward_ios, color: Colors.white24, size: 18),
+                            Icon(Icons.arrow_forward_ios, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4), size: 18),
             ],
           ),
         ),

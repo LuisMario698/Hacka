@@ -8,7 +8,7 @@ class PantallaRutas extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF181C2E),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           // Fondo de "mapa" simulado
@@ -16,7 +16,7 @@ class PantallaRutas extends StatelessWidget {
             child: Image.asset(
               'assets/mapa_simulado.png',
               fit: BoxFit.cover,
-              color: Colors.black.withOpacity(0.3),
+              color: Theme.of(context).colorScheme.surface.withOpacity(0.3),
               colorBlendMode: BlendMode.darken,
             ),
           ),
@@ -28,8 +28,8 @@ class PantallaRutas extends StatelessWidget {
               children: [
                 FloatingActionButton(
                   heroTag: 'sos_rutas',
-                  backgroundColor: Color(0xFFFFA726),
-                  child: Icon(Icons.shield, color: Colors.white),
+                  backgroundColor: Theme.of(context).colorScheme.error,
+                  child: Icon(Icons.shield, color: Theme.of(context).colorScheme.onError),
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('¡Alerta SOS enviada! (simulado)')),
@@ -39,8 +39,8 @@ class PantallaRutas extends StatelessWidget {
                 SizedBox(height: 16),
                 FloatingActionButton(
                   heroTag: 'inicio_rutas',
-                  backgroundColor: Color(0xFF415A77),
-                  child: Icon(Icons.home, color: Colors.white),
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  child: Icon(Icons.home, color: Theme.of(context).colorScheme.onPrimary),
                   onPressed: () => _irAlInicio(context),
                   tooltip: 'Volver al menú',
                 ),
@@ -54,11 +54,11 @@ class PantallaRutas extends StatelessWidget {
               margin: EdgeInsets.only(bottom: 24),
               padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.95),
+                color: Theme.of(context).colorScheme.surface.withOpacity(0.95),
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black26,
+                    color: Theme.of(context).colorScheme.shadow.withOpacity(0.26),
                     blurRadius: 16,
                     offset: Offset(0, 8),
                   ),
@@ -122,7 +122,7 @@ class _RutaCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: seleccionada ? color.withOpacity(0.15) : Colors.white,
+        color: seleccionada ? color.withOpacity(0.15) : Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: color, width: seleccionada ? 2 : 1),
       ),
@@ -136,7 +136,7 @@ class _RutaCard extends StatelessWidget {
           nombre,
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: Colors.black87,
+            color: Theme.of(context).colorScheme.onSurface,
             fontSize: 16,
           ),
         ),
@@ -145,7 +145,7 @@ class _RutaCard extends StatelessWidget {
             ? ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: color,
-                  foregroundColor: Colors.black,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   shape: StadiumBorder(),
                 ),
                 child: Text('[ INICIAR ]'),

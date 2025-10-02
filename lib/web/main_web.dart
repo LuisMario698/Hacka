@@ -1,19 +1,33 @@
 import 'package:flutter/material.dart';
 import 'pantallas/pantalla_panel.dart';
-import 'tema/tema_seguro.dart';
+import '../servicios/theme_service.dart';
+import '../servicios/supabase_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Inicializar servicios
+  await ThemeService().initialize();
+  await SupabaseService.initialize();
+  
   runApp(AppWebCentroControl());
 }
 
 class AppWebCentroControl extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Centro de Control',
-      theme: temaSeguro(),
-      home: PantallaPanel(),
-      debugShowCheckedModeBanner: false,
+    return AnimatedBuilder(
+      animation: ThemeService(),
+      builder: (context, child) {
+        return MaterialApp(
+          title: 'Centro de Control',
+          theme: ThemeService.lightTheme, // Nuevo tema claro accesible
+          darkTheme: ThemeService.darkTheme, // Nuevo tema oscuro
+          themeMode: ThemeService().isDarkMode ? ThemeMode.dark : ThemeMode.light,
+          home: PantallaPanel(),
+          debugShowCheckedModeBanner: false,
+        );
+      },
     );
   }
 }

@@ -2,6 +2,7 @@
 
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'configuracion_movil.dart';
 
 /// Pantalla de perfil/cuenta de usuario, elegante y completa.
 class PantallaPerfil extends StatelessWidget {
@@ -10,25 +11,25 @@ class PantallaPerfil extends StatelessWidget {
 
     return Scaffold(
       extendBodyBehindAppBar: true,
-      backgroundColor: const Color(0xFF181C2E),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text('Mi cuenta', style: TextStyle(color: Colors.white)),
-        iconTheme: const IconThemeData(color: Colors.white),
+        title: Text('Mi cuenta', style: TextStyle(color: Theme.of(context).colorScheme.onBackground)),
+        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onBackground),
       ),
       body: Stack(
         children: [
           // Fondo premium con degradado y glass
           Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color(0xFF23243A),
-                  Color(0xFF181C2E),
-                  Color(0xFF23243A),
+                  Theme.of(context).colorScheme.background,
+                  Theme.of(context).scaffoldBackgroundColor,
+                  Theme.of(context).colorScheme.background,
                 ],
               ),
             ),
@@ -47,7 +48,7 @@ class PantallaPerfil extends StatelessWidget {
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
                 child: Container(
-                  color: Colors.white.withOpacity(0.07),
+                  color: Theme.of(context).colorScheme.surface.withOpacity(0.07),
                 ),
               ),
             ),
@@ -69,17 +70,17 @@ class PantallaPerfil extends StatelessWidget {
                         scale: scale,
                         child: CircleAvatar(
                           radius: 54,
-                          backgroundColor: const Color(0xFF23243A),
-                          child: const Icon(Icons.person, color: Colors.white, size: 68),
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          child: Icon(Icons.person, color: Theme.of(context).colorScheme.onPrimary, size: 68),
                         ),
                       );
                     },
                   ),
                   const SizedBox(height: 18),
-                  const Text(
+                  Text(
                     'Usuario Simulado',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onBackground,
                       fontWeight: FontWeight.bold,
                       fontSize: 28,
                       letterSpacing: 0.2,
@@ -89,12 +90,12 @@ class PantallaPerfil extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.10),
+                      color: Theme.of(context).colorScheme.surface.withOpacity(0.3),
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: const Text(
+                    child: Text(
                       'usuario@simulado.com',
-                      style: TextStyle(color: Colors.white70, fontSize: 17, letterSpacing: 0.1),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7), fontSize: 17, letterSpacing: 0.1),
                     ),
                   ),
                   const SizedBox(height: 32),
@@ -104,26 +105,26 @@ class PantallaPerfil extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
-                          children: const [
-                            Icon(Icons.verified_user, color: Colors.white70, size: 28),
+                          children: [
+                            Icon(Icons.verified_user, color: Theme.of(context).colorScheme.secondary, size: 28),
                             SizedBox(width: 12),
-                            Text('Cuenta verificada', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 19)),
+                            Text('Cuenta verificada', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.w600, fontSize: 19)),
                           ],
                         ),
                         SizedBox(height: 16),
                         Row(
-                          children: const [
-                            Icon(Icons.phone_android, color: Colors.white38, size: 24),
+                          children: [
+                            Icon(Icons.phone_android, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), size: 24),
                             SizedBox(width: 12),
-                            Text('Teléfono: +52 55 1234 5678', style: TextStyle(color: Colors.white70, fontSize: 17)),
+                            Text('Teléfono: +52 55 1234 5678', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8), fontSize: 17)),
                           ],
                         ),
                         SizedBox(height: 10),
                         Row(
-                          children: const [
-                            Icon(Icons.location_on, color: Colors.white38, size: 24),
+                          children: [
+                            Icon(Icons.location_on, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), size: 24),
                             SizedBox(width: 12),
-                            Text('Ciudad: CDMX', style: TextStyle(color: Colors.white70, fontSize: 17)),
+                            Text('Ciudad: CDMX', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8), fontSize: 17)),
                           ],
                         ),
                       ],
@@ -134,7 +135,12 @@ class PantallaPerfil extends StatelessWidget {
                   _OpcionPerfil(
                     icon: Icons.settings,
                     texto: 'Configuración',
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => ConfiguracionMovil()),
+                      );
+                    },
                   ),
                   _OpcionPerfil(
                     icon: Icons.security,
@@ -157,13 +163,13 @@ class PantallaPerfil extends StatelessWidget {
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xCCFF3B30), // Rojo transparente
+                        backgroundColor: Theme.of(context).colorScheme.error.withOpacity(0.8),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                         padding: const EdgeInsets.symmetric(vertical: 18),
                         elevation: 0,
                       ),
-                      icon: const Icon(Icons.logout, color: Colors.white, size: 28),
-                      label: const Text('Cerrar sesión', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
+                      icon: Icon(Icons.logout, color: Theme.of(context).colorScheme.onError, size: 28),
+                      label: Text('Cerrar sesión', style: TextStyle(color: Theme.of(context).colorScheme.onError, fontWeight: FontWeight.bold, fontSize: 20)),
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Sesión cerrada (simulado)')),
@@ -172,9 +178,9 @@ class PantallaPerfil extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  const Text(
+                  Text(
                     'Versión 1.0.0',
-                    style: TextStyle(color: Colors.white24, fontSize: 13),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onBackground.withOpacity(0.4), fontSize: 13),
                   ),
                 ],
               ),
@@ -198,16 +204,16 @@ class _TarjetaGlass extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 2),
       padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.10),
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: Colors.black12,
+            color: Theme.of(context).colorScheme.shadow.withOpacity(0.2),
             blurRadius: 16,
             offset: Offset(0, 6),
           ),
         ],
-        border: Border.all(color: Colors.white.withOpacity(0.13), width: 1.2),
+        border: Border.all(color: Theme.of(context).colorScheme.outline.withOpacity(0.3), width: 1.2),
       ),
       child: child,
     );
@@ -229,16 +235,27 @@ class _OpcionPerfil extends StatelessWidget {
       curve: Curves.easeOutCubic,
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.10),
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).colorScheme.shadow.withOpacity(0.15),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+          width: 1,
+        ),
       ),
       child: ListTile(
-        leading: Icon(icon, color: Colors.white, size: 30),
+        leading: Icon(icon, color: Theme.of(context).colorScheme.onSurface, size: 30),
         title: Text(
           texto,
-          style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w500),
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 20, fontWeight: FontWeight.w500),
         ),
-        trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white38, size: 22),
+        trailing: Icon(Icons.arrow_forward_ios, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.38), size: 22),
         onTap: onTap,
       ),
     );
