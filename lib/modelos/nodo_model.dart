@@ -65,8 +65,9 @@ class Nodo {
     
     final diferencia = DateTime.now().difference(fechaUltimaLectura!);
     
-    // Si no hay lecturas en los últimos 15 minutos, está offline
-    if (diferencia.inMinutes > 15) return 'offline';
+    // Si no hay lecturas en las últimas 24 horas, está offline
+    // (Nota: Para producción con sensores reales, usar 15-30 minutos)
+    if (diferencia.inHours > 24) return 'offline';
     
     // Si hay alerta por luz baja o ruido alto
     if (ultimoLux != null && ultimoLux! < 50) return 'alerta';

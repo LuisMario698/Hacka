@@ -14,13 +14,10 @@ class NodoService {
         print('🔍 Obteniendo todos los nodos...');
       }
 
-      // Query para obtener nodos con su última lectura
+      // Obtener todos los nodos
       final response = await _supabase.client
           .from('nodos')
-          .select('''
-            *,
-            ultima_lectura:lecturas(lux, ruido, fecha)
-          ''')
+          .select('*')
           .order('created_at', ascending: false);
 
       if (kDebugMode) {
@@ -29,16 +26,33 @@ class NodoService {
 
       final List<Nodo> nodos = [];
       
+      // Para cada nodo, obtener su última lectura
       for (var nodoData in response) {
         final nodo = Nodo.fromJson(nodoData);
         
-        // Agregar datos de última lectura si existe
-        if (nodoData['ultima_lectura'] != null && 
-            (nodoData['ultima_lectura'] as List).isNotEmpty) {
-          final ultimaLectura = (nodoData['ultima_lectura'] as List).first;
-          nodo.ultimoLux = (ultimaLectura['lux'] as num?)?.toDouble();
-          nodo.ultimoRuido = (ultimaLectura['ruido'] as num?)?.toDouble();
-          nodo.fechaUltimaLectura = DateTime.parse(ultimaLectura['fecha']);
+        // Obtener la última lectura de este nodo específico
+        try {
+          final lecturasResponse = await _supabase.client
+              .from('lecturas')
+              .select('lux, ruido, fecha')
+              .eq('nodo_id', nodo.id)
+              .order('fecha', ascending: false)
+              .limit(1);
+          
+          if (lecturasResponse.isNotEmpty) {
+            final ultimaLectura = lecturasResponse.first;
+            nodo.ultimoLux = (ultimaLectura['lux'] as num?)?.toDouble();
+            nodo.ultimoRuido = (ultimaLectura['ruido'] as num?)?.toDouble();
+            nodo.fechaUltimaLectura = DateTime.parse(ultimaLectura['fecha']);
+            
+            if (kDebugMode) {
+              print('  └─ ${nodo.nombre}: Última lectura ${nodo.fechaUltimaLectura}');
+            }
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('  └─ ${nodo.nombre}: Sin lecturas ($e)');
+          }
         }
         
         nodos.add(nodo);

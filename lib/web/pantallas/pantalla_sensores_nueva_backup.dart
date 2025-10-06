@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 import '../../servicios/nodo_service.dart';
 import '../../modelos/nodo_model.dart';
 import '../../modelos/lectura_model.dart';
-import '../widgets/dialogo_agregar_sensor.dart';
 
 class PantallaSensoresNueva extends StatefulWidget {
   @override
@@ -437,13 +436,88 @@ class _PantallaSensoresNuevaState extends State<PantallaSensoresNueva> {
   }
 
   void _mostrarDialogoAgregarSensor() {
+    final nombreController = TextEditingController();
+    final claveController = TextEditingController();
+    final latitudController = TextEditingController();
+    final longitudController = TextEditingController();
+
     showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (ctx) => DialogoAgregarSensor(
-        onCrear: () {
-          _cargarDatos();
-        },
+      builder: (ctx) => AlertDialog(
+        title: Text('Agregar Nuevo Sensor'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nombreController,
+                decoration: InputDecoration(
+                  labelText: 'Nombre del Sensor',
+                  hintText: 'Ej: Sensor Parque Central',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              SizedBox(height: 12),
+              TextField(
+                controller: claveController,
+                decoration: InputDecoration(
+                  labelText: 'Clave del Dispositivo',
+                  hintText: 'Ej: SENSOR_001',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              SizedBox(height: 12),
+              TextField(
+                controller: latitudController,
+                decoration: InputDecoration(
+                  labelText: 'Latitud',
+                  hintText: 'Ej: 19.4326',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
+              ),
+              SizedBox(height: 12),
+              TextField(
+                controller: longitudController,
+                decoration: InputDecoration(
+                  labelText: 'Longitud',
+                  hintText: 'Ej: -99.1332',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                await NodoService.crearNodo(
+                  nombre: nombreController.text,
+                  claveDelDispositivo: claveController.text,
+                  latitud: double.parse(latitudController.text),
+                  longitud: double.parse(longitudController.text),
+                );
+                
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Sensor creado exitosamente')),
+                );
+                _cargarDatos();
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error: $e')),
+                );
+              }
+            },
+            child: Text('Crear'),
+          ),
+        ],
       ),
     );
   }
