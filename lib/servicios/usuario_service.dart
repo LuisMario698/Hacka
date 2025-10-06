@@ -6,17 +6,22 @@ import 'supabase_service.dart';
 class UsuarioService {
   static final SupabaseService _supabase = SupabaseService.instance;
 
-  /// Obtener todos los usuarios
+  /// Obtener todos los usuarios con información de rol
   static Future<List<Usuario>> obtenerUsuarios() async {
     try {
       final response = await _supabase.client
           .from('usuarios')
-          .select()
+          .select('*, roles!usuarios_rol_id_fkey(nombre)')
+          .isFilter('deleted_at', null)
           .order('created_at', ascending: false);
 
-      return (response as List)
-          .map((json) => Usuario.fromJson(json))
-          .toList();
+      return (response as List).map((json) {
+        // Agregar rol_nombre desde el JOIN
+        if (json['roles'] != null && json['roles'] is Map) {
+          json['rol_nombre'] = json['roles']['nombre'];
+        }
+        return Usuario.fromJson(json);
+      }).toList();
     } catch (e) {
       if (kDebugMode) {
         print('❌ Error obteniendo usuarios: $e');
@@ -107,24 +112,29 @@ class UsuarioService {
   static Future<Usuario> crearUsuario({
     required String id, // ID del usuario autenticado
     required String email,
-    String? nombre,
-    String rol = 'usuario',
+    required String nombre,
+    int rolId = 1, // 1 = usuario, 2 = moderador, 3 = administrador, 4 = super_admin
   }) async {
     try {
       final usuarioData = {
         'id': id,
         'email': email,
         'nombre': nombre,
-        'rol': rol,
+        'rol_id': rolId,
         'esta_activo': true,
-        'password_hash': 'handled_by_auth', // Placeholder, auth maneja las contraseñas
+        // NO incluir password_hash - Supabase Auth lo maneja automáticamente
       };
 
       final response = await _supabase.client
           .from('usuarios')
           .insert(usuarioData)
-          .select()
+          .select('*, roles!usuarios_rol_id_fkey(nombre)')
           .single();
+
+      // Agregar rol_nombre desde el JOIN
+      if (response['roles'] != null && response['roles'] is Map) {
+        response['rol_nombre'] = response['roles']['nombre'];
+      }
 
       final usuario = Usuario.fromJson(response);
       
@@ -145,7 +155,7 @@ class UsuarioService {
   static Future<Usuario> actualizarUsuario(String id, {
     String? nombre,
     String? email,
-    String? rol,
+    int? rolId,
     bool? estaActivo,
   }) async {
     try {
@@ -153,15 +163,20 @@ class UsuarioService {
       
       if (nombre != null) updateData['nombre'] = nombre;
       if (email != null) updateData['email'] = email;
-      if (rol != null) updateData['rol'] = rol;
+      if (rolId != null) updateData['rol_id'] = rolId;
       if (estaActivo != null) updateData['esta_activo'] = estaActivo;
 
       final response = await _supabase.client
           .from('usuarios')
           .update(updateData)
           .eq('id', id)
-          .select()
+          .select('*, roles!usuarios_rol_id_fkey(nombre)')
           .single();
+
+      // Agregar rol_nombre desde el JOIN
+      if (response['roles'] != null && response['roles'] is Map) {
+        response['rol_nombre'] = response['roles']['nombre'];
+      }
 
       final usuario = Usuario.fromJson(response);
       
@@ -241,17 +256,40 @@ class UsuarioService {
     try {
       final response = await _supabase.client
           .from('usuarios')
-          .select()
+          .select('*, roles!usuarios_rol_id_fkey(nombre)')
           .ilike('nombre', '%$nombre%')
           .eq('esta_activo', true)
           .order('nombre', ascending: true);
 
-      return (response as List)
-          .map((json) => Usuario.fromJson(json))
-          .toList();
+      return (response as List).map((json) {
+        // Agregar rol_nombre desde el JOIN
+        if (json['roles'] != null && json['roles'] is Map) {
+          json['rol_nombre'] = json['roles']['nombre'];
+        }
+        return Usuario.fromJson(json);
+      }).toList();
     } catch (e) {
       if (kDebugMode) {
         print('❌ Error buscando usuarios por nombre: $e');
+      }
+      rethrow;
+    }
+  }
+
+  /// Obtener todos los roles disponibles
+  static Future<List<Rol>> obtenerRoles() async {
+    try {
+      final response = await _supabase.client
+          .from('roles')
+          .select()
+          .order('id', ascending: true);
+
+      return (response as List)
+          .map((json) => Rol.fromJson(json))
+          .toList();
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error obteniendo roles: $e');
       }
       rethrow;
     }
@@ -339,22 +377,27 @@ class UsuarioService {
   }
 
   /// Cambiar rol de usuario
-  static Future<Usuario> cambiarRolUsuario(String usuarioId, String nuevoRol) async {
+  static Future<Usuario> cambiarRolUsuario(String usuarioId, int nuevoRolId) async {
     try {
-      // Validar que el rol sea válido
-      if (!['usuario', 'administrador'].contains(nuevoRol)) {
-        throw Exception('Rol inválido: $nuevoRol');
+      // Validar que el rol sea válido (1-4)
+      if (nuevoRolId < 1 || nuevoRolId > 4) {
+        throw Exception('Rol inválido: $nuevoRolId');
       }
 
       final response = await _supabase.client
           .from('usuarios')
-          .update({'rol': nuevoRol})
+          .update({'rol_id': nuevoRolId})
           .eq('id', usuarioId)
-          .select()
+          .select('*, roles!usuarios_rol_id_fkey(nombre)')
           .single();
 
+      // Agregar rol_nombre desde el JOIN
+      if (response['roles'] != null && response['roles'] is Map) {
+        response['rol_nombre'] = response['roles']['nombre'];
+      }
+
       if (kDebugMode) {
-        print('✅ Rol cambiado para usuario: $usuarioId -> $nuevoRol');
+        print('✅ Rol cambiado para usuario: $usuarioId -> $nuevoRolId');
       }
 
       return Usuario.fromJson(response);
@@ -366,11 +409,11 @@ class UsuarioService {
     }
   }
 
-  /// Verificar si un usuario tiene un rol específico
-  static Future<bool> usuarioTieneRol(String usuarioId, String rol) async {
+  /// Verificar si un usuario tiene un rol específico (por ID)
+  static Future<bool> usuarioTieneRol(String usuarioId, int rolId) async {
     try {
       final usuario = await obtenerUsuarioPorId(usuarioId);
-      return usuario?.rol == rol;
+      return usuario?.rolId == rolId;
     } catch (e) {
       if (kDebugMode) {
         print('❌ Error verificando rol de usuario: $e');
@@ -379,11 +422,11 @@ class UsuarioService {
     }
   }
 
-  /// Verificar si el usuario actual es administrador
+  /// Verificar si el usuario actual es administrador (rol_id >= 3)
   static Future<bool> usuarioEsAdmin() async {
     try {
       final usuario = await obtenerUsuarioActual();
-      return usuario?.rol == 'administrador';
+      return usuario?.esAdmin ?? false;
     } catch (e) {
       if (kDebugMode) {
         print('❌ Error verificando si usuario es admin: $e');
