@@ -177,4 +177,55 @@ class SupabaseService {
       return 'Error desconocido: $error';
     }
   }
+
+  /// Registrar nuevo usuario en nuestra tabla personalizada
+  Future<Map<String, dynamic>?> signUpCustom({
+    required String email,
+    required String password,
+    required String nombre,
+    String? telefono,
+  }) async {
+    try {
+      // Llamar a la función de base de datos para crear usuario
+      final response = await client.rpc('crear_usuario', params: {
+        'p_email': email,
+        'p_password': password,
+        'p_nombre': nombre,
+        'p_telefono': telefono,
+        'p_rol_id': 3, // Rol de usuario normal
+      });
+
+      if (kDebugMode) {
+        print('✅ Usuario registrado en tabla personalizada: $email');
+      }
+
+      return response as Map<String, dynamic>?;
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error registrando usuario personalizado: $e');
+      }
+      rethrow;
+    }
+  }
+
+  /// Login con sistema personalizado (sin Supabase Auth)
+  static Future<Map<String, dynamic>?> signInCustom(String email, String password) async {
+    try {
+      final response = await SupabaseService.instance.client.rpc('login_usuario', params: {
+        'p_email': email,
+        'p_password': password,
+      });
+
+      if (kDebugMode) {
+        print('✅ Login exitoso: $email');
+      }
+
+      return response as Map<String, dynamic>?;
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error en login: $e');
+      }
+      return null;
+    }
+  }
 }

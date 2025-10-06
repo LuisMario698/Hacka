@@ -1,0 +1,343 @@
+-- ============================================
+-- CREAR TABLAS BASE - SUPABASE
+-- Proyecto: Hacka 2025
+-- EJECUTAR PRIMERO ANTES DE LA MIGRACIÓN
+-- ============================================
+
+-- Habilitar extensiones
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- 1. TABLA USUARIOS
+CREATE TABLE IF NOT EXISTS public.usuarios (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    nombre TEXT NOT NULL,
+    esta_activo BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 2. TABLA NODOS
+CREATE TABLE IF NOT EXISTS public.nodos (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    nombre TEXT NOT NULL,
+    clave_del_dispositivo TEXT UNIQUE NOT NULL,
+    latitud DOUBLE PRECISION NOT NULL,
+    longitud DOUBLE PRECISION NOT NULL,
+    activo BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 3. TABLA LECTURAS
+CREATE TABLE IF NOT EXISTS public.lecturas (
+    identificacion SERIAL PRIMARY KEY,
+    nodo_id UUID NOT NULL REFERENCES public.nodos(id) ON DELETE CASCADE,
+    lux DOUBLE PRECISION NOT NULL DEFAULT 0,
+    ruido DOUBLE PRECISION NOT NULL DEFAULT 0,
+    fecha TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 4. TABLA REPORTES
+CREATE TABLE IF NOT EXISTS public.reportes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    usuario_id UUID NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
+    titulo TEXT NOT NULL,
+    descripcion TEXT,
+    lat DOUBLE PRECISION NOT NULL,
+    lon DOUBLE PRECISION NOT NULL,
+    url_evidencia TEXT,
+    estado TEXT DEFAULT 'nuevo',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 5. TABLA RUTAS_HISTORIAL
+CREATE TABLE IF NOT EXISTS public.rutas_historial (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    usuario_id UUID NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
+    punto_inicio JSONB NOT NULL,
+    punto_fin JSONB NOT NULL,
+    waypoints JSONB,
+    distancia_metros DOUBLE PRECISION,
+    duracion_segundos INTEGER,
+    nivel_seguridad_promedio SMALLINT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 6. TABLA TRAMOS_CALLE
+CREATE TABLE IF NOT EXISTS public.tramos_calle (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    lat_inicio DOUBLE PRECISION NOT NULL,
+    lon_inicio DOUBLE PRECISION NOT NULL,
+    lat_fin DOUBLE PRECISION NOT NULL,
+    lon_fin DOUBLE PRECISION NOT NULL,
+    nivel_seguridad SMALLINT NOT NULL DEFAULT 5,
+    nombre_calle TEXT
+);
+
+-- Verificar que las tablas se crearon
+SELECT 
+    table_name,
+    (SELECT COUNT(*) FROM information_schema.columns WHERE table_name = t.table_name) as columnas
+FROM information_schema.tables t
+WHERE table_schema = 'public' 
+  AND table_type = 'BASE TABLE'
+ORDER BY table_name;
+
+SELECT '✅ Tablas base creadas exitosamente!' as mensaje;
+
+-- ============================================
+-- MIGRACIÓN COMPLETA DESDE CERO - SUPABASE
+-- Proyecto: Hacka 2025
+-- ============================================
+
+-- PASO 1: EXTENSIONES
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- PASO 2: ELIMINAR TODO (CUIDADO - SOLO SI QUIERES EMPEZAR DE CERO)
+DROP TABLE IF EXISTS public.rutas_historial CASCADE;
+DROP TABLE IF EXISTS public.reportes CASCADE;
+DROP TABLE IF EXISTS public.lecturas CASCADE;
+DROP TABLE IF EXISTS public.lecturas_sensor CASCADE;
+DROP TABLE IF EXISTS public.tramos_calle CASCADE;
+DROP TABLE IF EXISTS public.nodos CASCADE;
+DROP TABLE IF EXISTS public.usuarios CASCADE;
+DROP TABLE IF EXISTS public.roles CASCADE;
+DROP TYPE IF EXISTS estado_reporte CASCADE;
+DROP TYPE IF EXISTS tipo_reporte CASCADE;
+
+-- PASO 3: CREAR TABLA ROLES
+CREATE TABLE public.roles (
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(50) UNIQUE NOT NULL,
+    descripcion TEXT,
+    permisos JSONB DEFAULT '[]'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+INSERT INTO public.roles (id, nombre, descripcion, permisos) VALUES
+(1, 'usuario', 'Usuario móvil estándar', '["usar_app", "crear_reportes", "ver_rutas"]'::jsonb),
+(2, 'moderador', 'Gestiona reportes y usuarios', '["usar_app", "crear_reportes", "gestionar_reportes", "ver_usuarios"]'::jsonb),
+(3, 'administrador', 'Acceso completo al dashboard', '["usar_app", "gestionar_reportes", "gestionar_usuarios", "gestionar_nodos", "ver_analitica"]'::jsonb),
+(4, 'super_admin', 'Control total del sistema', '["*"]'::jsonb);
+
+SELECT setval('roles_id_seq', 4);
+
+-- PASO 4: CREAR TABLA USUARIOS
+CREATE TABLE public.usuarios (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL CHECK (length(password_hash) >= 60),
+    nombre TEXT NOT NULL,
+    telefono VARCHAR(20),
+    avatar_url TEXT,
+    rol_id INTEGER NOT NULL REFERENCES public.roles(id) DEFAULT 1,
+    esta_activo BOOLEAN DEFAULT true,
+    preferencias JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    ultimo_login TIMESTAMP WITH TIME ZONE,
+    editado_por UUID REFERENCES public.usuarios(id),
+    deleted_at TIMESTAMP WITH TIME ZONE
+);
+
+-- PASO 5: CREAR TABLA NODOS
+CREATE TABLE public.nodos (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    nombre TEXT NOT NULL,
+    clave_del_dispositivo TEXT UNIQUE NOT NULL,
+    latitud DOUBLE PRECISION NOT NULL CHECK (latitud >= -90 AND latitud <= 90),
+    longitud DOUBLE PRECISION NOT NULL CHECK (longitud >= -180 AND longitud <= 180),
+    activo BOOLEAN DEFAULT true,
+    tipo_sensor VARCHAR(50) DEFAULT 'hibrido',
+    ubicacion_descripcion TEXT,
+    estado_conexion VARCHAR(20) DEFAULT 'desconocido',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    ultima_lectura TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
+);
+
+-- PASO 6: CREAR TABLA LECTURAS
+CREATE TABLE public.lecturas (
+    identificacion SERIAL PRIMARY KEY,
+    nodo_id UUID NOT NULL REFERENCES public.nodos(id) ON DELETE CASCADE,
+    lux DOUBLE PRECISION NOT NULL DEFAULT 0 CHECK (lux >= 0 AND lux <= 200000),
+    ruido DOUBLE PRECISION NOT NULL DEFAULT 0 CHECK (ruido >= 0 AND ruido <= 150),
+    tipo_lectura VARCHAR(50) DEFAULT 'sensor',
+    metadata JSONB DEFAULT '{}'::jsonb,
+    calidad_dato SMALLINT DEFAULT 100,
+    procesado BOOLEAN DEFAULT false,
+    fecha TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- PASO 7: CREAR TIPOS ENUM
+CREATE TYPE estado_reporte AS ENUM ('nuevo', 'en_proceso', 'resuelto', 'rechazado');
+CREATE TYPE tipo_reporte AS ENUM ('acoso', 'iluminacion', 'infraestructura', 'vandalismo', 'inseguridad', 'otro');
+
+-- PASO 8: CREAR TABLA REPORTES
+CREATE TABLE public.reportes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    usuario_id UUID NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
+    titulo TEXT NOT NULL,
+    descripcion TEXT,
+    lat DOUBLE PRECISION NOT NULL,
+    lon DOUBLE PRECISION NOT NULL,
+    url_evidencia TEXT,
+    estado estado_reporte DEFAULT 'nuevo',
+    tipo tipo_reporte,
+    prioridad SMALLINT DEFAULT 1,
+    votos_utilidad INTEGER DEFAULT 0,
+    comentarios_admin TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    resuelto_por UUID REFERENCES public.usuarios(id),
+    resuelto_en TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
+);
+
+-- PASO 9: CREAR TABLA RUTAS_HISTORIAL
+CREATE TABLE public.rutas_historial (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    usuario_id UUID NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
+    punto_inicio JSONB NOT NULL,
+    punto_fin JSONB NOT NULL,
+    waypoints JSONB,
+    distancia_metros DOUBLE PRECISION,
+    duracion_segundos INTEGER,
+    nivel_seguridad_promedio SMALLINT,
+    nombre_ruta VARCHAR(200),
+    es_favorita BOOLEAN DEFAULT false,
+    veces_usada INTEGER DEFAULT 1,
+    tipo_transporte VARCHAR(50) DEFAULT 'caminando',
+    condiciones_clima JSONB,
+    incidentes_reportados INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    deleted_at TIMESTAMP WITH TIME ZONE
+);
+
+-- PASO 10: CREAR TABLA TRAMOS_CALLE
+CREATE TABLE public.tramos_calle (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    lat_inicio DOUBLE PRECISION NOT NULL,
+    lon_inicio DOUBLE PRECISION NOT NULL,
+    lat_fin DOUBLE PRECISION NOT NULL,
+    lon_fin DOUBLE PRECISION NOT NULL,
+    nivel_seguridad SMALLINT NOT NULL DEFAULT 5,
+    nombre_calle TEXT,
+    tiene_iluminacion BOOLEAN DEFAULT true,
+    tiene_camaras BOOLEAN DEFAULT false,
+    transito_promedio SMALLINT,
+    horarios_seguros JSONB,
+    nodos_cercanos UUID[],
+    calculo_basado_en JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    deleted_at TIMESTAMP WITH TIME ZONE
+);
+
+-- PASO 11: ÍNDICES
+CREATE INDEX idx_usuarios_email ON public.usuarios(email);
+CREATE INDEX idx_usuarios_rol_id ON public.usuarios(rol_id);
+CREATE INDEX idx_usuarios_activo ON public.usuarios(esta_activo) WHERE deleted_at IS NULL;
+CREATE INDEX idx_nodos_activo ON public.nodos(activo) WHERE deleted_at IS NULL;
+CREATE INDEX idx_nodos_ubicacion ON public.nodos(latitud, longitud);
+CREATE INDEX idx_nodos_clave ON public.nodos(clave_del_dispositivo);
+CREATE INDEX idx_lecturas_nodo_id ON public.lecturas(nodo_id);
+CREATE INDEX idx_lecturas_fecha ON public.lecturas(fecha DESC);
+CREATE INDEX idx_reportes_usuario_id ON public.reportes(usuario_id);
+CREATE INDEX idx_reportes_estado ON public.reportes(estado);
+CREATE INDEX idx_reportes_created_at ON public.reportes(created_at DESC);
+CREATE INDEX idx_rutas_usuario_id ON public.rutas_historial(usuario_id);
+CREATE INDEX idx_tramos_nivel ON public.tramos_calle(nivel_seguridad);
+
+-- PASO 12: FUNCIONES
+CREATE OR REPLACE FUNCTION public.registrar_usuario(p_email TEXT, p_password TEXT, p_nombre TEXT, p_rol_id INTEGER DEFAULT 1)
+RETURNS UUID AS $$
+DECLARE v_usuario_id UUID;
+BEGIN
+    IF p_email !~ '^[A-Za-z0-9._+%-]+@[A-Za-z0-9.-]+[.][A-Za-z]+$' THEN RAISE EXCEPTION 'Email inválido'; END IF;
+    IF length(p_password) < 8 THEN RAISE EXCEPTION 'La contraseña debe tener al menos 8 caracteres'; END IF;
+    INSERT INTO public.usuarios (email, password_hash, nombre, rol_id, esta_activo)
+    VALUES (lower(p_email), crypt(p_password, gen_salt('bf')), p_nombre, p_rol_id, true)
+    RETURNING id INTO v_usuario_id;
+    RETURN v_usuario_id;
+EXCEPTION WHEN unique_violation THEN RAISE EXCEPTION 'El email ya está registrado';
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION public.login_usuario(p_email TEXT, p_password TEXT)
+RETURNS TABLE(id UUID, email TEXT, nombre TEXT, rol_id INTEGER, rol_nombre VARCHAR(50), esta_activo BOOLEAN, permisos JSONB) AS $$
+BEGIN
+    UPDATE public.usuarios u SET ultimo_login = NOW()
+    WHERE lower(u.email) = lower(p_email) AND u.password_hash = crypt(p_password, u.password_hash) AND u.esta_activo = true AND u.deleted_at IS NULL;
+    RETURN QUERY
+    SELECT u.id, u.email, u.nombre, u.rol_id, r.nombre as rol_nombre, u.esta_activo, r.permisos
+    FROM public.usuarios u INNER JOIN public.roles r ON u.rol_id = r.id
+    WHERE lower(u.email) = lower(p_email) AND u.password_hash = crypt(p_password, u.password_hash) AND u.esta_activo = true AND u.deleted_at IS NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- PASO 13: TRIGGERS
+CREATE OR REPLACE FUNCTION public.actualizar_updated_at() RETURNS TRIGGER AS $$
+BEGIN NEW.updated_at = NOW(); RETURN NEW; END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_usuarios_updated_at BEFORE UPDATE ON public.usuarios FOR EACH ROW EXECUTE FUNCTION actualizar_updated_at();
+CREATE TRIGGER trigger_nodos_updated_at BEFORE UPDATE ON public.nodos FOR EACH ROW EXECUTE FUNCTION actualizar_updated_at();
+CREATE TRIGGER trigger_reportes_updated_at BEFORE UPDATE ON public.reportes FOR EACH ROW EXECUTE FUNCTION actualizar_updated_at();
+CREATE TRIGGER trigger_tramos_updated_at BEFORE UPDATE ON public.tramos_calle FOR EACH ROW EXECUTE FUNCTION actualizar_updated_at();
+CREATE TRIGGER trigger_roles_updated_at BEFORE UPDATE ON public.roles FOR EACH ROW EXECUTE FUNCTION actualizar_updated_at();
+
+CREATE OR REPLACE FUNCTION public.actualizar_estado_nodo() RETURNS TRIGGER AS $$
+BEGIN UPDATE public.nodos SET ultima_lectura = NEW.fecha, estado_conexion = 'online' WHERE id = NEW.nodo_id; RETURN NEW; END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_lectura_actualiza_nodo AFTER INSERT ON public.lecturas FOR EACH ROW EXECUTE FUNCTION actualizar_estado_nodo();
+
+-- PASO 14: RLS
+ALTER TABLE public.usuarios ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.nodos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.lecturas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.reportes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rutas_historial ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tramos_calle ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.roles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Usuarios ven su propio perfil" ON public.usuarios FOR SELECT USING (id = auth.uid() OR deleted_at IS NULL);
+CREATE POLICY "Usuarios actualizan su perfil" ON public.usuarios FOR UPDATE USING (id = auth.uid());
+CREATE POLICY "Admins gestionan usuarios" ON public.usuarios FOR ALL USING (EXISTS (SELECT 1 FROM public.usuarios WHERE id = auth.uid() AND rol_id IN (3, 4) AND deleted_at IS NULL));
+CREATE POLICY "Usuarios ven reportes públicos" ON public.reportes FOR SELECT USING (deleted_at IS NULL);
+CREATE POLICY "Usuarios crean sus reportes" ON public.reportes FOR INSERT WITH CHECK (usuario_id = auth.uid());
+CREATE POLICY "Admins gestionan reportes" ON public.reportes FOR ALL USING (EXISTS (SELECT 1 FROM public.usuarios WHERE id = auth.uid() AND rol_id IN (2, 3, 4) AND deleted_at IS NULL));
+CREATE POLICY "Todos ven nodos activos" ON public.nodos FOR SELECT USING (deleted_at IS NULL);
+CREATE POLICY "Todos ven lecturas" ON public.lecturas FOR SELECT USING (true);
+CREATE POLICY "Sistema inserta lecturas" ON public.lecturas FOR INSERT WITH CHECK (true);
+CREATE POLICY "Usuarios ven sus rutas" ON public.rutas_historial FOR SELECT USING (usuario_id = auth.uid());
+CREATE POLICY "Usuarios crean sus rutas" ON public.rutas_historial FOR INSERT WITH CHECK (usuario_id = auth.uid());
+CREATE POLICY "Todos ven tramos" ON public.tramos_calle FOR SELECT USING (deleted_at IS NULL);
+CREATE POLICY "Todos ven roles" ON public.roles FOR SELECT USING (true);
+
+-- PASO 15: DATOS DE PRUEBA
+DO $$
+DECLARE v_admin_id UUID;
+BEGIN
+    v_admin_id := public.registrar_usuario('admin@hacka.com', 'Admin2025!', 'Administrador Sistema', 4);
+    RAISE NOTICE 'Admin creado con ID: %', v_admin_id;
+END $$;
+
+DO $$
+DECLARE v_user_id UUID;
+BEGIN
+    v_user_id := public.registrar_usuario('usuario@test.com', 'User2025!', 'Usuario de Prueba', 1);
+    RAISE NOTICE 'Usuario creado con ID: %', v_user_id;
+END $$;
+
+-- VERIFICACIÓN
+SELECT '✅ MIGRACIÓN COMPLETA EXITOSA' as mensaje, NOW() as fecha;
+SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' ORDER BY table_name;
+
+usuario@test.com - User2025!
+admin@hacka.com - Admin2025!

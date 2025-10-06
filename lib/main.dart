@@ -1,17 +1,17 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'móvil/main_movil.dart' as movil;
 import 'web/main_web.dart' as web;
 
-/// Punto de entrada principal de la aplicación
-/// Detecta automáticamente la plataforma y carga la app correspondiente:
-/// - Web: Dashboard administrativo
-/// - Móvil: App de rutas seguras
 void main() {
   if (kIsWeb) {
-    // Ejecutar versión web (Dashboard administrativo)
-    web.main();
+    // Ejecutar versión web 
+    movil.main();
+  } else if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    exit(0); // No soportado en escritorio
   } else {
-    // Ejecutar versión móvil (App de usuario)
+    // Ejecutar versión móvil
     movil.main();
   }
 }

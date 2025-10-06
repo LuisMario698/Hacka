@@ -27,10 +27,64 @@ class _PantallaPanelState extends State<PantallaPanel> {
   @override
   void initState() {
     super.initState();
-    _nodosFuture = Future.value(<Map<String, dynamic>>[]);
-    _lecturasFuture = Future.value(<Map<String, dynamic>>[]);
-    // feedActividad: puedes crear un método en SupabaseService para obtener actividad si tienes una tabla, o usar lecturas recientes
-    _feedFuture = Future.value(<Map<String, dynamic>>[]);
+    // Datos de ejemplo para mostrar el mapa
+    _nodosFuture = Future.value([
+      {
+        'id': 'SENSOR001',
+        'tipo': 'Luminaria',
+        'ubicacion': LatLng(31.3167, -113.5361),
+        'estado': 'Activo',
+        'ultimaAccion': '2025-10-02 14:30',
+        'activo': true,
+      },
+      {
+        'id': 'SENSOR002', 
+        'tipo': 'Cámara',
+        'ubicacion': LatLng(31.3170, -113.5355),
+        'estado': 'Activo',
+        'ultimaAccion': '2025-10-02 14:25',
+        'activo': true,
+      },
+      {
+        'id': 'SENSOR003',
+        'tipo': 'Botón de Pánico',
+        'ubicacion': LatLng(31.3160, -113.5370),
+        'estado': 'Inactivo',
+        'ultimaAccion': '2025-10-02 12:15',
+        'activo': false,
+      },
+    ]);
+    _lecturasFuture = Future.value([
+      {
+        'ubicacion': 'Centro',
+        'zona': 'Segura',
+        'tipo': 'Reporte de seguridad',
+        'fecha': '2025-10-02',
+      },
+      {
+        'ubicacion': 'Norte',
+        'zona': 'Peligrosa', 
+        'tipo': 'Incidente reportado',
+        'fecha': '2025-10-02',
+      },
+    ]);
+    _feedFuture = Future.value([
+      {
+        'tipo': 'Alerta',
+        'msg': 'Sensor SENSOR003 desconectado',
+        'hora': '14:30',
+      },
+      {
+        'tipo': 'Reporte',
+        'msg': 'Nuevo reporte de incidente en zona Norte',
+        'hora': '14:25',
+      },
+      {
+        'tipo': 'Info',
+        'msg': 'Sistema funcionando correctamente',
+        'hora': '14:00',
+      },
+    ]);
   }
 
   int _selectedMenu = 0; // 0: Dashboard, 1: Configuración, 2: Usuarios, 3: Sensores, 4: Reportes
@@ -252,19 +306,15 @@ class _DashboardCentral extends StatelessWidget {
                 children: [
                   FlutterMap(
                     options: MapOptions(
-                      center: LatLng(31.3167, -113.5361),
-                      zoom: 15.0,
+                      initialCenter: LatLng(31.3167, -113.5361),
+                      initialZoom: 15.0,
                       maxZoom: 18,
                       minZoom: 3,
                     ),
                     children: [
                       TileLayer(
-                        urlTemplate: Theme.of(context).brightness == Brightness.dark
-                            ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-                            : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-                        subdomains: ['a', 'b', 'c', 'd'],
-                        userAgentPackageName: 'com.example.rutasseguras',
-                        backgroundColor: Colors.transparent,
+                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.example.tefrontend',
                       ),
                       // Heatmap simulado de reportes
                       MarkerLayer(
