@@ -7,7 +7,7 @@ import 'web/main_web.dart' as web;
 void main() {
   if (kIsWeb) {
     // Ejecutar versión web 
-    movil.main();
+    web.main();
   } else if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     exit(0); // No soportado en escritorio
   } else {
