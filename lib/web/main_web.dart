@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'pantallas/pantalla_panel.dart';
+import 'pantallas/pantalla_login_web.dart';
+import 'pantallas/pantalla_dashboard_principal.dart';
 import '../servicios/theme_service.dart';
 import '../servicios/supabase_service.dart';
+import '../servicios/auth_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,12 +22,20 @@ class AppWebCentroControl extends StatelessWidget {
       animation: ThemeService(),
       builder: (context, child) {
         return MaterialApp(
-          title: 'Centro de Control',
-          theme: ThemeService.lightTheme, // Nuevo tema claro accesible
-          darkTheme: ThemeService.darkTheme, // Nuevo tema oscuro
+          title: 'Centro de Control - Rutas Seguras',
+          theme: ThemeService.lightTheme,
+          darkTheme: ThemeService.darkTheme,
           themeMode: ThemeService().isDarkMode ? ThemeMode.dark : ThemeMode.light,
-          home: PantallaPanel(),
+          // Verificar si hay sesión activa
+          home: AuthService.estaAutenticado() && AuthService.esAdmin()
+              ? PantallaDashboardPrincipal()
+              : PantallaLoginWeb(),
           debugShowCheckedModeBanner: false,
+          // Rutas nombradas
+          routes: {
+            '/login': (context) => PantallaLoginWeb(),
+            '/dashboard': (context) => PantallaDashboardPrincipal(),
+          },
         );
       },
     );
