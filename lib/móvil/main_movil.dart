@@ -3,6 +3,7 @@ import 'pantallas/pantalla_login.dart';
 import 'pantallas/pantalla_home.dart';
 import '../servicios/theme_service.dart';
 import '../servicios/supabase_service.dart';
+import '../servicios/auth_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -10,6 +11,9 @@ void main() async {
   // Inicializar servicios
   await ThemeService().initialize();
   await SupabaseService.initialize();
+  
+  // Cargar sesión guardada
+  await AuthService.cargarSesion();
   
   runApp(AppMovilSegura());
 }
@@ -25,7 +29,10 @@ class AppMovilSegura extends StatelessWidget {
           theme: ThemeService.lightTheme, // Nuevo tema claro accesible
           darkTheme: ThemeService.darkTheme, // Nuevo tema oscuro
           themeMode: ThemeService().isDarkMode ? ThemeMode.dark : ThemeMode.light,
-          home: LoginScreen(),
+          // Verificar si hay sesión activa
+          home: AuthService.estaAutenticado()
+              ? PantallaHome()
+              : LoginScreen(),
           debugShowCheckedModeBanner: false,
           // Rutas nombradas para navegación fácil
           routes: {

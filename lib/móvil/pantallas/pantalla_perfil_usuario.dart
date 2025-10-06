@@ -67,9 +67,9 @@ class PantallaPerfilUsuario extends StatelessWidget {
                         child: Text('Cancelar'),
                       ),
                       ElevatedButton(
-                        onPressed: () {
+                        onPressed: () async {
                           // Cerrar sesión
-                          AuthService.cerrarSesion();
+                          await AuthService.cerrarSesion();
                           
                           // Volver al login
                           Navigator.of(ctx).pop(); // Cerrar diálogo

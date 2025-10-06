@@ -1,9 +1,12 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../servicios/supabase_service.dart';
 
 /// Servicio de autenticación personalizado usando funciones SQL
 class AuthService {
   static final SupabaseService _supabase = SupabaseService.instance;
+  static const String _sessionKey = 'user_session';
 
   /// Login usando la función SQL personalizada
   static Future<Map<String, dynamic>> login({
@@ -105,16 +108,72 @@ class AuthService {
   /// (Guardamos los datos después del login)
   static Map<String, dynamic>? _usuarioActual;
 
-  static void guardarSesion(Map<String, dynamic> userData) {
+  /// Guardar sesión en memoria y persistencia
+  static Future<void> guardarSesion(Map<String, dynamic> userData) async {
     _usuarioActual = userData;
+    
+    // Guardar en SharedPreferences para persistencia
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userJson = jsonEncode(userData);
+      await prefs.setString(_sessionKey, userJson);
+      
+      if (kDebugMode) {
+        print('💾 Sesión guardada en persistencia');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('⚠️ Error al guardar sesión en persistencia: $e');
+      }
+    }
   }
 
+  /// Obtener sesión desde memoria (instantáneo)
   static Map<String, dynamic>? obtenerSesion() {
     return _usuarioActual;
   }
 
-  static void cerrarSesion() {
+  /// Cargar sesión desde persistencia al iniciar la app
+  static Future<Map<String, dynamic>?> cargarSesion() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userJson = prefs.getString(_sessionKey);
+      
+      if (userJson != null) {
+        final userData = jsonDecode(userJson) as Map<String, dynamic>;
+        _usuarioActual = userData;
+        
+        if (kDebugMode) {
+          print('✅ Sesión cargada desde persistencia: ${userData['email']}');
+        }
+        
+        return userData;
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('⚠️ Error al cargar sesión: $e');
+      }
+    }
+    
+    return null;
+  }
+
+  /// Cerrar sesión (memoria y persistencia)
+  static Future<void> cerrarSesion() async {
     _usuarioActual = null;
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_sessionKey);
+      
+      if (kDebugMode) {
+        print('🚪 Sesión cerrada y eliminada de persistencia');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('⚠️ Error al cerrar sesión: $e');
+      }
+    }
   }
 
   static bool estaAutenticado() {

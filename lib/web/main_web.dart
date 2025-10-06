@@ -12,6 +12,9 @@ void main() async {
   await ThemeService().initialize();
   await SupabaseService.initialize();
   
+  // Cargar sesión guardada
+  await AuthService.cargarSesion();
+  
   runApp(AppWebCentroControl());
 }
 
@@ -26,8 +29,8 @@ class AppWebCentroControl extends StatelessWidget {
           theme: ThemeService.lightTheme,
           darkTheme: ThemeService.darkTheme,
           themeMode: ThemeService().isDarkMode ? ThemeMode.dark : ThemeMode.light,
-          // Verificar si hay sesión activa
-          home: AuthService.estaAutenticado() && AuthService.esAdmin()
+          // Verificar si hay sesión activa y si es admin/moderador
+          home: AuthService.estaAutenticado() && (AuthService.esAdmin() || AuthService.esModerador())
               ? PantallaDashboardPrincipal()
               : PantallaLoginWeb(),
           debugShowCheckedModeBanner: false,

@@ -105,8 +105,8 @@ class _PantallaDashboardPrincipalState
             child: Text('Cancelar'),
           ),
           ElevatedButton(
-            onPressed: () {
-              AuthService.cerrarSesion();
+            onPressed: () async {
+              await AuthService.cerrarSesion();
               Navigator.of(ctx).pop();
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(builder: (context) => PantallaLoginWeb()),
