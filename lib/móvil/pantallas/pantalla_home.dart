@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../servicios/auth_service.dart';
 import 'pantalla_mapa_interactivo.dart';
 import 'pantalla_reportes.dart';
 import 'pantalla_perfil_usuario.dart';
 import 'pantalla_rutas_guardadas.dart';
+import '../componentes/boton_panico_mejorado.dart';
+import '../componentes/componentes_ui_profesionales.dart';
+import '../tema/tema_profesional.dart';
 
 class PantallaHome extends StatefulWidget {
   @override
   _PantallaHomeState createState() => _PantallaHomeState();
 }
 
-class _PantallaHomeState extends State<PantallaHome> {
+class _PantallaHomeState extends State<PantallaHome> with WidgetsBindingObserver {
   int _currentIndex = 0;
   String _nombreUsuario = 'Usuario';
 
@@ -18,6 +22,18 @@ class _PantallaHomeState extends State<PantallaHome> {
   void initState() {
     super.initState();
     _cargarDatosUsuario();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangePlatformBrightness() {
+    setState(() {});
   }
 
   void _cargarDatosUsuario() {
@@ -51,88 +67,72 @@ class _PantallaHomeState extends State<PantallaHome> {
         index: _currentIndex,
         children: paginas,
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: Color(0xFF667eea),
-        unselectedItemColor: Colors.grey,
-        items: [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Inicio',
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          boxShadow: [
+            BoxShadow(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.black26
+                  : Colors.black12,
+              offset: Offset(0, -2),
+              blurRadius: 8,
+              spreadRadius: 0,
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: EspaciadoProfesional.md,
+              vertical: EspaciadoProfesional.sm,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _NavigationItem(
+                  icon: Icons.home_outlined,
+                  activeIcon: Icons.home_rounded,
+                  label: 'Inicio',
+                  isActive: _currentIndex == 0,
+                  onTap: () => setState(() => _currentIndex = 0),
+                ),
+                _NavigationItem(
+                  icon: Icons.map_outlined,
+                  activeIcon: Icons.map_rounded,
+                  label: 'Mapa',
+                  isActive: _currentIndex == 1,
+                  onTap: () => setState(() => _currentIndex = 1),
+                ),
+                _NavigationItem(
+                  icon: Icons.assessment_outlined,
+                  activeIcon: Icons.assessment_rounded,
+                  label: 'Reportes',
+                  isActive: _currentIndex == 2,
+                  onTap: () => setState(() => _currentIndex = 2),
+                ),
+                _NavigationItem(
+                  icon: Icons.person_outline_rounded,
+                  activeIcon: Icons.person_rounded,
+                  label: 'Perfil',
+                  isActive: _currentIndex == 3,
+                  onTap: () => setState(() => _currentIndex = 3),
+                ),
+              ],
+            ),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.map_outlined),
-            activeIcon: Icon(Icons.map),
-            label: 'Mapa',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.report_outlined),
-            activeIcon: Icon(Icons.report),
-            label: 'Reportes',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
-            label: 'Perfil',
-          ),
-        ],
+        ),
       ),
-      floatingActionButton: _currentIndex == 0 || _currentIndex == 1
-          ? FloatingActionButton(
-              onPressed: _mostrarBotonPanico,
-              backgroundColor: Colors.red,
-              child: Icon(Icons.emergency, color: Colors.white),
-              heroTag: 'panic_button',
+      floatingActionButton: _currentIndex == 0 // Solo en la página de inicio
+          ? BotonPanicoMejorado(
+              onActivarEmergencia: _activarAlertaEmergencia,
             )
           : null,
     );
   }
 
-  void _mostrarBotonPanico() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.red, size: 32),
-            SizedBox(width: 12),
-            Text('Botón de Pánico'),
-          ],
-        ),
-        content: Text(
-          '¿Estás en una situación de emergencia?\n\n'
-          'Se enviará tu ubicación a tus contactos de confianza.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _activarAlertaEmergencia();
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: Text('ACTIVAR SOS', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _activarAlertaEmergencia() {
-    // TODO: Implementar envío de alerta
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('🚨 Alerta de emergencia activada'),
-        backgroundColor: Colors.red,
-        duration: Duration(seconds: 3),
-      ),
-    );
+    ServicioEmergencia.activarAlertaEmergencia(context);
   }
 }
 
@@ -148,17 +148,37 @@ class _PaginaInicio extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    // Actualizar PaletaProfesional según el tema actual
+    PaletaProfesional.setTemaOscuro(isDark);
+    
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Rutas Seguras'),
-        backgroundColor: Color(0xFF667eea),
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.notifications_outlined),
-            onPressed: () {
-              // TODO: Navegar a notificaciones
-            },
+      backgroundColor: colorScheme.background,
+      appBar: AppBarConsistente(
+        titulo: 'Rutas Seguras',
+        colorFondo: Colors.transparent,
+        acciones: [
+          Container(
+            margin: EdgeInsets.only(right: EspaciadoProfesional.md),
+            child: IconButton(
+              icon: Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: colorScheme.primary.withOpacity(isDark ? 0.2 : 0.1),
+                  borderRadius: BorderRadius.circular(RadiosProfesionales.sm),
+                ),
+                child: Icon(
+                  Icons.notifications_outlined,
+                  color: colorScheme.primary,
+                  size: 20,
+                ),
+              ),
+              onPressed: () {
+                // TODO: Navegar a notificaciones
+              },
+            ),
           ),
         ],
       ),
@@ -166,120 +186,185 @@ class _PaginaInicio extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header con gradiente
+            // Header minimalista y elegante
             Container(
               width: double.infinity,
+              margin: EdgeInsets.all(EspaciadoProfesional.md),
+              padding: EdgeInsets.all(EspaciadoProfesional.lg),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                ),
+                gradient: PaletaProfesional.gradientePrimario,
+                borderRadius: BorderRadius.circular(RadiosProfesionales.lg),
+                boxShadow: SombrasProfesionales.elevacion2,
               ),
-              padding: EdgeInsets.all(24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '¡Hola, $nombreUsuario! 👋',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    '¿A dónde quieres ir hoy?',
-                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                  Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(RadiosProfesionales.md),
+                        ),
+                        child: Icon(
+                          Icons.waving_hand_rounded,
+                          color: PaletaProfesional.textoBlanco,
+                          size: 24,
+                        ),
+                      ),
+                      SizedBox(width: EspaciadoProfesional.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Hola, $nombreUsuario',
+                              style: TextStyle(
+                                color: PaletaProfesional.textoBlanco,
+                                fontSize: TipografiaProfesional.h3,
+                                fontWeight: TipografiaProfesional.semibold,
+                                height: TipografiaProfesional.lineHeightTight,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Tu seguridad es nuestra prioridad',
+                              style: TextStyle(
+                                color: PaletaProfesional.textoBlanco.withOpacity(0.9),
+                                fontSize: TipografiaProfesional.body2,
+                                fontWeight: TipografiaProfesional.regular,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
 
             Padding(
-              padding: EdgeInsets.all(16),
+              padding: EdgeInsets.symmetric(horizontal: EspaciadoProfesional.md),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Búsqueda de rutas
-                  Card(
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                  // Búsqueda de rutas - diseño profesional
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: PaletaProfesional.fondoTarjeta,
+                      borderRadius: BorderRadius.circular(RadiosProfesionales.lg),
+                      border: Border.all(
+                        color: PaletaProfesional.divider,
+                        width: 1,
+                      ),
+                      boxShadow: SombrasProfesionales.elevacion1,
                     ),
-                    child: InkWell(
-                      onTap: onNavigateToMap,
-                      borderRadius: BorderRadius.circular(16),
-                      child: Padding(
-                        padding: EdgeInsets.all(20),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Color(0xFF667eea).withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: onNavigateToMap,
+                        borderRadius: BorderRadius.circular(RadiosProfesionales.lg),
+                        child: Padding(
+                          padding: EdgeInsets.all(EspaciadoProfesional.lg),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: EdgeInsets.all(EspaciadoProfesional.md),
+                                decoration: BoxDecoration(
+                                  color: PaletaProfesional.primarioSuave,
+                                  borderRadius: BorderRadius.circular(RadiosProfesionales.md),
+                                ),
+                                child: Icon(
+                                  Icons.route_rounded,
+                                  color: PaletaProfesional.primario,
+                                  size: 28,
+                                ),
                               ),
-                              child: Icon(
-                                Icons.search,
-                                color: Color(0xFF667eea),
-                                size: 32,
-                              ),
-                            ),
-                            SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Buscar ruta segura',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
+                              SizedBox(width: EspaciadoProfesional.md),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Planificar ruta segura',
+                                      style: TextStyle(
+                                        color: PaletaProfesional.textoPrimario,
+                                        fontSize: TipografiaProfesional.h4,
+                                        fontWeight: TipografiaProfesional.semibold,
+                                      ),
                                     ),
-                                  ),
-                                  SizedBox(height: 4),
-                                  Text(
-                                    'Encuentra el camino más seguro',
-                                    style: TextStyle(
-                                      color: Colors.grey,
-                                      fontSize: 14,
+                                    SizedBox(height: 4),
+                                    Text(
+                                      'Encuentra el camino más seguro a tu destino',
+                                      style: TextStyle(
+                                        color: PaletaProfesional.textoSecundario,
+                                        fontSize: TipografiaProfesional.body2,
+                                        fontWeight: TipografiaProfesional.regular,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                            Icon(Icons.arrow_forward_ios, color: Colors.grey),
-                          ],
+                              Container(
+                                padding: EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: PaletaProfesional.primarioSuave,
+                                  borderRadius: BorderRadius.circular(RadiosProfesionales.sm),
+                                ),
+                                child: Icon(
+                                  Icons.arrow_forward_ios_rounded,
+                                  color: PaletaProfesional.primario,
+                                  size: 16,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                  SizedBox(height: 24),
+                  SizedBox(height: EspaciadoProfesional.sectionSpacing),
 
-                  // Accesos rápidos
-                  Text(
-                    'Accesos Rápidos',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  // Accesos rápidos - diseño profesional
+                  Row(
+                    children: [
+                      Container(
+                        width: 4,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: PaletaProfesional.primario,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      SizedBox(width: EspaciadoProfesional.sm),
+                      Text(
+                        'Accesos Rápidos',
+                        style: TextStyle(
+                          color: PaletaProfesional.textoPrimario,
+                          fontSize: TipografiaProfesional.h4,
+                          fontWeight: TipografiaProfesional.semibold,
+                        ),
+                      ),
+                    ],
                   ),
-                  SizedBox(height: 12),
+                  SizedBox(height: EspaciadoProfesional.md),
                   
                   GridView.count(
                     crossAxisCount: 2,
                     shrinkWrap: true,
                     physics: NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1.3,
+                    crossAxisSpacing: EspaciadoProfesional.md,
+                    mainAxisSpacing: EspaciadoProfesional.md,
+                    childAspectRatio: 1.4,
                     children: [
-                      _AccesoRapido(
-                        icon: Icons.route,
+                      _AccesoRapidoProfesional(
+                        icon: Icons.bookmark_rounded,
                         title: 'Mis Rutas',
-                        color: Colors.blue,
+                        subtitle: 'Rutas guardadas',
+                        color: PaletaProfesional.secundario,
                         onTap: () {
                           Navigator.push(
                             context,
@@ -289,112 +374,181 @@ class _PaginaInicio extends StatelessWidget {
                           );
                         },
                       ),
-                      _AccesoRapido(
-                        icon: Icons.sensors,
+                      _AccesoRapidoProfesional(
+                        icon: Icons.sensors_rounded,
                         title: 'Sensores',
-                        color: Colors.green,
+                        subtitle: 'Estado en vivo',
+                        color: PaletaProfesional.seguro,
                         onTap: onNavigateToMap,
                       ),
-                      _AccesoRapido(
-                        icon: Icons.history,
+                      _AccesoRapidoProfesional(
+                        icon: Icons.history_rounded,
                         title: 'Historial',
-                        color: Colors.orange,
+                        subtitle: 'Rutas anteriores',
+                        color: PaletaProfesional.precaucion,
                         onTap: () {
                           // TODO: Navegar a historial
                         },
                       ),
-                      _AccesoRapido(
-                        icon: Icons.people,
+                      _AccesoRapidoProfesional(
+                        icon: Icons.contacts_rounded,
                         title: 'Contactos',
-                        color: Colors.purple,
+                        subtitle: 'Emergencia',
+                        color: Colors.deepPurple,
                         onTap: () {
                           // TODO: Navegar a contactos
                         },
                       ),
                     ],
                   ),
-                  SizedBox(height: 24),
+                  SizedBox(height: EspaciadoProfesional.sectionSpacing),
 
-                  // Estadísticas
-                  Text(
-                    'Tus Estadísticas',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                  // Estadísticas - diseño profesional
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(EspaciadoProfesional.lg),
+                    decoration: BoxDecoration(
+                      color: PaletaProfesional.fondoTarjeta,
+                      borderRadius: BorderRadius.circular(RadiosProfesionales.lg),
+                      border: Border.all(
+                        color: PaletaProfesional.divider,
+                        width: 1,
+                      ),
+                      boxShadow: SombrasProfesionales.elevacion1,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: PaletaProfesional.secundarioSuave,
+                                borderRadius: BorderRadius.circular(RadiosProfesionales.sm),
+                              ),
+                              child: Icon(
+                                Icons.analytics_rounded,
+                                color: PaletaProfesional.secundario,
+                                size: 20,
+                              ),
+                            ),
+                            SizedBox(width: EspaciadoProfesional.sm),
+                            Text(
+                              'Tus Estadísticas',
+                              style: TextStyle(
+                                color: PaletaProfesional.textoPrimario,
+                                fontSize: TipografiaProfesional.h4,
+                                fontWeight: TipografiaProfesional.semibold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: EspaciadoProfesional.lg),
+                        
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _TarjetaEstadisticaProfesional(
+                                icon: Icons.route_rounded,
+                                value: '23',
+                                label: 'Rutas tomadas',
+                                color: PaletaProfesional.secundario,
+                              ),
+                            ),
+                            SizedBox(width: EspaciadoProfesional.md),
+                            Expanded(
+                              child: _TarjetaEstadisticaProfesional(
+                                icon: Icons.timer_rounded,
+                                value: '12h',
+                                label: 'Tiempo seguro',
+                                color: PaletaProfesional.seguro,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: EspaciadoProfesional.md),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _TarjetaEstadisticaProfesional(
+                                icon: Icons.report_rounded,
+                                value: '5',
+                                label: 'Reportes hechos',
+                                color: PaletaProfesional.precaucion,
+                              ),
+                            ),
+                            SizedBox(width: EspaciadoProfesional.md),
+                            Expanded(
+                              child: _TarjetaEstadisticaProfesional(
+                                icon: Icons.emoji_events_rounded,
+                                value: '3',
+                                label: 'Insignias',
+                                color: Colors.amber.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                  SizedBox(height: 12),
-                  
+                  SizedBox(height: EspaciadoProfesional.sectionSpacing),
+
+                  // Alertas recientes - diseño profesional
                   Row(
                     children: [
-                      Expanded(
-                        child: _TarjetaEstadistica(
-                          icon: Icons.route,
-                          value: '23',
-                          label: 'Rutas tomadas',
-                          color: Colors.blue,
+                      Container(
+                        width: 4,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: PaletaProfesional.precaucion,
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
-                      SizedBox(width: 12),
+                      SizedBox(width: EspaciadoProfesional.sm),
                       Expanded(
-                        child: _TarjetaEstadistica(
-                          icon: Icons.schedule,
-                          value: '12h',
-                          label: 'Tiempo seguro',
-                          color: Colors.green,
+                        child: Text(
+                          'Alertas Recientes',
+                          style: TextStyle(
+                            color: PaletaProfesional.textoPrimario,
+                            fontSize: TipografiaProfesional.h4,
+                            fontWeight: TipografiaProfesional.semibold,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          // TODO: Ver todas las alertas
+                        },
+                        child: Text(
+                          'Ver todas',
+                          style: TextStyle(
+                            color: PaletaProfesional.primario,
+                            fontSize: TipografiaProfesional.body2,
+                            fontWeight: TipografiaProfesional.medium,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _TarjetaEstadistica(
-                          icon: Icons.report,
-                          value: '5',
-                          label: 'Reportes hechos',
-                          color: Colors.orange,
-                        ),
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: _TarjetaEstadistica(
-                          icon: Icons.emoji_events,
-                          value: '3',
-                          label: 'Insignias',
-                          color: Colors.amber,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 24),
-
-                  // Alertas recientes
-                  Text(
-                    'Alertas Recientes',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 12),
+                  SizedBox(height: EspaciadoProfesional.md),
                   
-                  _AlertaCard(
+                  _AlertaCardProfesional(
                     icon: Icons.warning_amber_rounded,
                     title: 'Zona de precaución',
-                    description: 'Calle Principal - Bajo nivel de iluminación',
-                    color: Colors.orange,
+                    description: 'Calle Principal - Bajo nivel de iluminación detectado',
+                    color: PaletaProfesional.precaucion,
                     time: 'Hace 2 horas',
                   ),
-                  SizedBox(height: 8),
-                  _AlertaCard(
-                    icon: Icons.lightbulb_outline,
-                    title: 'Sensor reparado',
-                    description: 'Av. Universidad - Sensor ya funcional',
-                    color: Colors.green,
+                  SizedBox(height: EspaciadoProfesional.sm),
+                  _AlertaCardProfesional(
+                    icon: Icons.lightbulb_rounded,
+                    title: 'Sensor restaurado',
+                    description: 'Av. Universidad - Sistema de iluminación funcional',
+                    color: PaletaProfesional.seguro,
                     time: 'Hace 5 horas',
                   ),
+                  SizedBox(height: EspaciadoProfesional.sectionSpacing),
                 ],
               ),
             ),
@@ -405,45 +559,68 @@ class _PaginaInicio extends StatelessWidget {
   }
 }
 
-// ===== WIDGETS AUXILIARES =====
-class _AccesoRapido extends StatelessWidget {
+// ===== WIDGETS AUXILIARES PROFESIONALES =====
+
+/// Widget de navegación inferior personalizado con diseño profesional
+class _NavigationItem extends StatelessWidget {
   final IconData icon;
-  final String title;
-  final Color color;
+  final IconData activeIcon;
+  final String label;
+  final bool isActive;
   final VoidCallback onTap;
 
-  const _AccesoRapido({
+  const _NavigationItem({
     required this.icon,
-    required this.title,
-    required this.color,
+    required this.activeIcon,
+    required this.label,
+    required this.isActive,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+    // Actualizar PaletaProfesional según el tema actual
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    PaletaProfesional.setTemaOscuro(isDark);
+    
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          vertical: EspaciadoProfesional.sm,
+          horizontal: EspaciadoProfesional.sm,
+        ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: EdgeInsets.all(12),
+            AnimatedContainer(
+              duration: AnimacionesProfesionales.normal,
+              padding: EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                shape: BoxShape.circle,
+                color: isActive
+                    ? PaletaProfesional.primarioSuave
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(RadiosProfesionales.sm),
               ),
-              child: Icon(icon, color: color, size: 32),
+              child: Icon(
+                isActive ? activeIcon : icon,
+                color: isActive
+                    ? PaletaProfesional.primario
+                    : PaletaProfesional.textoTerciario,
+                size: 24,
+              ),
             ),
-            SizedBox(height: 8),
+            SizedBox(height: 4),
             Text(
-              title,
+              label,
               style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
+                color: isActive
+                    ? PaletaProfesional.primario
+                    : PaletaProfesional.textoTerciario,
+                fontSize: TipografiaProfesional.caption,
+                fontWeight: isActive
+                    ? TipografiaProfesional.medium
+                    : TipografiaProfesional.regular,
               ),
             ),
           ],
@@ -453,13 +630,95 @@ class _AccesoRapido extends StatelessWidget {
   }
 }
 
-class _TarjetaEstadistica extends StatelessWidget {
+/// Widget de acceso rápido con diseño profesional
+class _AccesoRapidoProfesional extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _AccesoRapidoProfesional({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Actualizar PaletaProfesional según el tema actual
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    PaletaProfesional.setTemaOscuro(isDark);
+    
+    return Container(
+      decoration: BoxDecoration(
+        color: PaletaProfesional.fondoTarjeta,
+        borderRadius: BorderRadius.circular(RadiosProfesionales.md),
+        border: Border.all(
+          color: PaletaProfesional.divider,
+          width: 1,
+        ),
+        boxShadow: SombrasProfesionales.elevacion1,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(RadiosProfesionales.md),
+          child: Padding(
+            padding: EdgeInsets.all(EspaciadoProfesional.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: EdgeInsets.all(EspaciadoProfesional.sm),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(RadiosProfesionales.sm),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: color,
+                    size: 24,
+                  ),
+                ),
+                Spacer(),
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: PaletaProfesional.textoPrimario,
+                    fontSize: TipografiaProfesional.body1,
+                    fontWeight: TipografiaProfesional.semibold,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: PaletaProfesional.textoSecundario,
+                    fontSize: TipografiaProfesional.caption,
+                    fontWeight: TipografiaProfesional.regular,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Widget de estadística con diseño profesional
+class _TarjetaEstadisticaProfesional extends StatelessWidget {
   final IconData icon;
   final String value;
   final String label;
   final Color color;
 
-  const _TarjetaEstadistica({
+  const _TarjetaEstadisticaProfesional({
     required this.icon,
     required this.value,
     required this.label,
@@ -468,46 +727,61 @@ class _TarjetaEstadistica extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 28),
-            SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-            Text(
-              label,
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 12,
-              ),
-            ),
-          ],
+    // Actualizar PaletaProfesional según el tema actual
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    PaletaProfesional.setTemaOscuro(isDark);
+    
+    return Container(
+      padding: EdgeInsets.all(EspaciadoProfesional.md),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(RadiosProfesionales.md),
+        border: Border.all(
+          color: color.withOpacity(0.2),
+          width: 1,
         ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            icon,
+            color: color,
+            size: 24,
+          ),
+          SizedBox(height: EspaciadoProfesional.sm),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: TipografiaProfesional.h3,
+              fontWeight: TipografiaProfesional.bold,
+              height: TipografiaProfesional.lineHeightTight,
+            ),
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              color: PaletaProfesional.textoSecundario,
+              fontSize: TipografiaProfesional.caption,
+              fontWeight: TipografiaProfesional.regular,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _AlertaCard extends StatelessWidget {
+/// Widget de alerta con diseño profesional
+class _AlertaCardProfesional extends StatelessWidget {
   final IconData icon;
   final String title;
   final String description;
   final Color color;
   final String time;
 
-  const _AlertaCard({
+  const _AlertaCardProfesional({
     required this.icon,
     required this.title,
     required this.description,
@@ -517,54 +791,78 @@ class _AlertaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: EdgeInsets.all(12),
-        child: Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: color, size: 24),
-            ),
-            SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 12,
-                    ),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    time,
-                    style: TextStyle(
-                      color: Colors.grey[400],
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+    // Actualizar PaletaProfesional según el tema actual
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    PaletaProfesional.setTemaOscuro(isDark);
+    
+    return Container(
+      padding: EdgeInsets.all(EspaciadoProfesional.md),
+      decoration: BoxDecoration(
+        color: PaletaProfesional.fondoTarjeta,
+        borderRadius: BorderRadius.circular(RadiosProfesionales.md),
+        border: Border.all(
+          color: color.withOpacity(0.2),
+          width: 1,
         ),
+        boxShadow: SombrasProfesionales.elevacion1,
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(EspaciadoProfesional.sm),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(RadiosProfesionales.sm),
+            ),
+            child: Icon(
+              icon,
+              color: color,
+              size: 20,
+            ),
+          ),
+          SizedBox(width: EspaciadoProfesional.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: PaletaProfesional.textoPrimario,
+                    fontSize: TipografiaProfesional.body2,
+                    fontWeight: TipografiaProfesional.semibold,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  description,
+                  style: TextStyle(
+                    color: PaletaProfesional.textoSecundario,
+                    fontSize: TipografiaProfesional.caption,
+                    fontWeight: TipografiaProfesional.regular,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  time,
+                  style: TextStyle(
+                    color: PaletaProfesional.textoTerciario,
+                    fontSize: 11,
+                    fontWeight: TipografiaProfesional.regular,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+        ],
       ),
     );
   }

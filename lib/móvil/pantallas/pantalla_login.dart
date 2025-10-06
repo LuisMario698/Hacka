@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'pantalla_carga.dart';
 import 'pantalla_home.dart';
 import 'pantalla_registro.dart';
 import '../../servicios/supabase_service.dart';
