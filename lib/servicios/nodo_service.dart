@@ -2,16 +2,29 @@ import 'package:flutter/foundation.dart';
 import '../modelos/nodo_model.dart';
 import '../modelos/lectura_model.dart';
 import 'supabase_service.dart';
+import 'cache_service.dart';
 
 /// Servicio para gestionar nodos/sensores IoT
 class NodoService {
   static final SupabaseService _supabase = SupabaseService.instance;
+  static final CacheService _cache = CacheService();
 
-  /// Obtener todos los nodos con su última lectura
-  static Future<List<Nodo>> obtenerTodosLosNodos() async {
+  /// Obtener todos los nodos con su última lectura (CON CACHÉ)
+  static Future<List<Nodo>> obtenerTodosLosNodos({bool forceRefresh = false}) async {
+    // Intentar obtener del caché
+    if (!forceRefresh) {
+      final cached = _cache.get<List<Nodo>>('sensores:todos');
+      if (cached != null) {
+        if (kDebugMode) {
+          print('✅ Nodos obtenidos del caché (${cached.length})');
+        }
+        return cached;
+      }
+    }
+
     try {
       if (kDebugMode) {
-        print('🔍 Obteniendo todos los nodos...');
+        print('🔍 Obteniendo todos los nodos desde BD...');
       }
 
       // Obtener todos los nodos
@@ -58,12 +71,33 @@ class NodoService {
         nodos.add(nodo);
       }
 
+      // Guardar en caché
+      _cache.set('sensores:todos', nodos, category: 'sensores');
+      
+      if (kDebugMode) {
+        print('💾 Nodos guardados en caché (${nodos.length})');
+      }
+
       return nodos;
     } catch (e) {
       if (kDebugMode) {
         print('❌ Error al obtener nodos: $e');
       }
-      rethrow;
+      
+      // Intentar devolver caché aunque esté expirado antes de fallar
+      final cachedExpired = _cache.get<List<Nodo>>('sensores:todos');
+      if (cachedExpired != null && cachedExpired.isNotEmpty) {
+        if (kDebugMode) {
+          print('⚠️ Devolviendo caché anterior debido a error');
+        }
+        return cachedExpired;
+      }
+      
+      // Si no hay caché, devolver lista vacía en lugar de error
+      if (kDebugMode) {
+        print('⚠️ Devolviendo lista vacía debido a error y sin caché');
+      }
+      return [];
     }
   }
 
@@ -94,9 +128,20 @@ class NodoService {
     }).toList();
   }
 
-  /// Obtener estadísticas de nodos
-  static Future<Map<String, int>> obtenerEstadisticas() async {
-    final nodos = await obtenerTodosLosNodos();
+  /// Obtener estadísticas de nodos (CON CACHÉ)
+  static Future<Map<String, int>> obtenerEstadisticas({bool forceRefresh = false}) async {
+    // Intentar obtener del caché
+    if (!forceRefresh) {
+      final cached = _cache.get<Map<String, int>>('sensores:estadisticas');
+      if (cached != null) {
+        if (kDebugMode) {
+          print('✅ Estadísticas obtenidas del caché');
+        }
+        return cached;
+      }
+    }
+
+    final nodos = await obtenerTodosLosNodos(forceRefresh: forceRefresh);
     
     int total = nodos.length;
     int online = 0;
@@ -110,13 +155,22 @@ class NodoService {
       if (estado == 'alerta') conAlerta++;
     }
     
-    return {
+    final stats = {
       'total': total,
       'online': online,
       'offline': offline,
       'alerta': conAlerta,
     };
-  }
+
+    // Guardar en caché
+    _cache.set('sensores:estadisticas', stats, category: 'estadisticas_sensores');
+    
+    return stats;
+  } 
+  
+  // Nota: Este método ya no lanza excepciones porque obtenerTodosLosNodos
+  // devuelve lista vacía en caso de error, por lo que siempre tendremos
+  // estadísticas válidas (incluso si es 0/0/0/0)
 
   /// Crear nuevo nodo
   static Future<Nodo> crearNodo({
@@ -145,6 +199,9 @@ class NodoService {
       if (kDebugMode) {
         print('✅ Nodo creado exitosamente');
       }
+
+      // Invalidar caché de sensores
+      _cache.invalidateCategory('sensores');
 
       return Nodo.fromJson(response);
     } catch (e) {
@@ -188,6 +245,9 @@ class NodoService {
         print('✅ Nodo actualizado exitosamente');
       }
 
+      // Invalidar caché de sensores
+      _cache.invalidateCategory('sensores');
+
       return Nodo.fromJson(response);
     } catch (e) {
       if (kDebugMode) {
@@ -208,6 +268,9 @@ class NodoService {
           .from('nodos')
           .delete()
           .eq('id', id);
+
+      // Invalidar caché de sensores
+      _cache.invalidateCategory('sensores');
 
       if (kDebugMode) {
         print('✅ Nodo eliminado exitosamente');

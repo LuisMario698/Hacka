@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -90,32 +91,90 @@ class _PantallaReportesNuevaState extends State<PantallaReportesNueva> {
   @override
   void initState() {
     super.initState();
-    _cargarSensores();
+    // Pequeño delay para evitar colisiones al cambiar de pantalla
+    Future.delayed(Duration(milliseconds: 100), () {
+      if (mounted) {
+        _cargarSensores();
+      }
+    });
   }
 
-  Future<void> _cargarSensores() async {
+  Future<void> _cargarSensores({bool forceRefresh = false, int reintentos = 3}) async {
+    if (!mounted) return;
+    
     setState(() {
       _cargandoSensores = true;
     });
 
-    try {
-      final sensores = await NodoService.obtenerTodosLosNodos();
-      setState(() {
-        _sensores = sensores;
-        _cargandoSensores = false;
-      });
-    } catch (e) {
-      print('Error al cargar sensores: $e');
-      setState(() {
-        _cargandoSensores = false;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al cargar sensores: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+    // Intentar cargar con reintentos automáticos
+    for (int intento = 0; intento < reintentos; intento++) {
+      try {
+        // Timeout para evitar esperas infinitas
+        final sensores = await NodoService.obtenerTodosLosNodos(forceRefresh: forceRefresh)
+            .timeout(
+              Duration(seconds: 10),
+              onTimeout: () {
+                print('⏱️ Timeout en obtención de sensores en reportes (intento ${intento + 1}/$reintentos)');
+                throw TimeoutException('Timeout al obtener sensores');
+              },
+            );
+
+        // Éxito - actualizar UI y salir
+        if (mounted) {
+          setState(() {
+            _sensores = sensores;
+            _cargandoSensores = false;
+          });
+        }
+        print('✅ Sensores cargados en reportes (${sensores.length} sensores)');
+        return;
+
+      } catch (e) {
+        print('❌ Error al cargar sensores en reportes (intento ${intento + 1}/$reintentos): $e');
+        
+        // Si no es el último intento, esperar y reintentar
+        if (intento < reintentos - 1) {
+          await Future.delayed(Duration(milliseconds: 500 * (intento + 1)));
+          continue;
+        }
+        
+        // Último intento falló - mantener sensores anteriores o cargar vacío
+        if (mounted) {
+          setState(() {
+            // Si no hay sensores, cargar lista vacía
+            if (_sensores.isEmpty) {
+              _sensores = [];
+            }
+            // Si ya hay sensores, mantenerlos (mejor datos viejos que nada)
+            _cargandoSensores = false;
+          });
+
+          // Mostrar mensaje discreto solo si no hay datos
+          if (_sensores.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    Icon(Icons.cloud_off, color: Colors.white, size: 20),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text('No se pudieron cargar los sensores en el mapa'),
+                    ),
+                  ],
+                ),
+                backgroundColor: Colors.orange.shade700,
+                duration: Duration(seconds: 3),
+                behavior: SnackBarBehavior.floating,
+                action: SnackBarAction(
+                  label: 'Reintentar',
+                  textColor: Colors.white,
+                  onPressed: () => _cargarSensores(forceRefresh: true),
+                ),
+              ),
+            );
+          }
+        }
+        print('⚠️ Todos los reintentos fallaron en reportes. Sensores disponibles: ${_sensores.length}');
       }
     }
   }
@@ -165,8 +224,8 @@ class _PantallaReportesNuevaState extends State<PantallaReportesNueva> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : Icon(Icons.refresh),
-                      tooltip: 'Refrescar sensores',
-                      onPressed: _cargandoSensores ? null : _cargarSensores,
+                      tooltip: 'Refrescar desde servidor',
+                      onPressed: _cargandoSensores ? null : () => _cargarSensores(forceRefresh: true),
                     ),
                     // Toggle Vista
                     IconButton(

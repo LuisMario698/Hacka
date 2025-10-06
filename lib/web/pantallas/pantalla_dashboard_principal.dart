@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../servicios/auth_service.dart';
+import '../../servicios/cache_service.dart';
 import 'pantalla_dashboard_home.dart';
 import 'pantalla_sensores_nueva.dart';
 import 'pantalla_reportes_nueva.dart';
@@ -15,15 +16,30 @@ class PantallaDashboardPrincipal extends StatefulWidget {
 }
 
 class _PantallaDashboardPrincipalState
-    extends State<PantallaDashboardPrincipal> {
+    extends State<PantallaDashboardPrincipal> with AutomaticKeepAliveClientMixin {
   int _selectedIndex = 0;
   String _nombreUsuario = 'Admin';
   String _rolUsuario = 'Administrador';
+
+  // Mantener el estado de las pantallas
+  @override
+  bool get wantKeepAlive => true;
+
+  // Limpiar caché expirado cada 5 minutos
+  void _iniciarLimpiezaCache() {
+    Future.delayed(Duration(minutes: 5), () {
+      if (mounted) {
+        CacheService().cleanExpired();
+        _iniciarLimpiezaCache();
+      }
+    });
+  }
 
   @override
   void initState() {
     super.initState();
     _cargarDatosUsuario();
+    _iniciarLimpiezaCache();
   }
 
   void _cargarDatosUsuario() {
@@ -126,6 +142,8 @@ class _PantallaDashboardPrincipalState
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Requerido por AutomaticKeepAliveClientMixin
+    
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = screenWidth < 900;
 
