@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'pantallas/pantalla_login.dart';
-import 'pantallas/pantalla_home.dart';
+import '../móvil/pantallas/pantalla_login.dart';
+import '../móvil/pantallas/pantalla_home.dart';
 import '../servicios/theme_service.dart';
 import '../servicios/supabase_service.dart';
 import '../servicios/auth_service.dart';
